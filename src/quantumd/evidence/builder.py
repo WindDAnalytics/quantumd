@@ -86,7 +86,7 @@ class EvidenceBuilder:
         status: str,
         details: Any = None,
     ) -> None:
-        if status not in {"PASS", "FAIL", "ERROR", "SKIPPED", "CLASSICAL_DOMINANCE"}:
+        if status not in {"PASS", "FAIL", "ERROR", "SKIPPED", "CLASSICAL_BASELINE_MEETS_CONTRACT"}:
             raise ValueError(f"Unsupported gate status: {status}")
 
         self.evidence["gates"].append(

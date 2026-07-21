@@ -1,6 +1,5 @@
 import warnings
 from pathlib import Path
-
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
@@ -18,22 +17,14 @@ def check_classical_baseline(project_dir: Path, manifest: dict) -> dict:
     data_config = manifest.get("inputs", {})
     dataset_path = project_dir / data_config.get("dataset", {}).get("path", "")
     
-    if not dataset_path.exists():
-        raise FileNotFoundError(f"Dataset not found at {dataset_path}")
-        
     df = pd.read_csv(dataset_path)
     target_col = data_config.get("target_column")
-    
-    if target_col not in df.columns:
-        raise ValueError(f"Target column '{target_col}' not found in dataset.")
-        
     X = df.drop(columns=[target_col])
     y = df[target_col]
     
     split_config = data_config.get("train_test_split", {})
     test_size = split_config.get("test_size", 0.2)
     seed = split_config.get("random_seed", 1729)
-    
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=seed)
     
     best_acc = 0.0
@@ -60,15 +51,10 @@ def check_classical_baseline(project_dir: Path, manifest: dict) -> dict:
     min_required = contract.get("minimum_test_accuracy", 0.0)
     
     if best_acc >= min_required:
-        status = "CLASSICAL_DOMINANCE"
+        status = "CLASSICAL_BASELINE_MEETS_CONTRACT"
         details = f"Classical {best_model} achieved {best_acc*100:.1f}%. Quantum contract minimum is {min_required*100:.1f}%."
     else:
         status = "PASS"
         details = f"Classical models failed to reach minimum accuracy ({best_acc*100:.1f}% vs {min_required*100:.1f}%)."
 
-    return {
-        "status": status,
-        "best_accuracy": best_acc,
-        "best_model": best_model,
-        "details": details
-    }
+    return {"status": status, "best_accuracy": best_acc, "best_model": best_model, "details": details}
