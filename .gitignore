@@ -27,3 +27,4 @@ fix_*.py
 .vscode/
 .idea/
 .repairs/
+**/evidence/reports/

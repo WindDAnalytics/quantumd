@@ -236,5 +236,49 @@ def run(project_dir: Path | None):
 def ai(prompt: str):
     click.echo(f"QuantumD AI: Generating workload for '{prompt}'...")
 
+
+@cli.group()
+def evidence():
+    """Manage and verify cryptographic evidence records."""
+    pass
+
+@evidence.command(name="verify-signature")
+@click.argument("project_dir", type=click.Path(exists=True, file_okay=False, path_type=Path))
+def verify_sig(project_dir: Path):
+    """Mathematically verify the KMS ECDSA signature of the latest run."""
+    from quantumd.evidence.verifier import verify_signature
+    click.secho("=== QuantumD Signature Verifier ===", bold=True, fg="magenta")
+    click.echo(f"Target: {project_dir.resolve()}\n")
+    
+    try:
+        click.secho("Fetching Public Key and validating ECDSA signature... ", nl=False)
+        result = verify_signature(project_dir)
+        click.secho("PASS", fg="green", bold=True)
+        
+        click.echo()
+        click.secho("[STATUS] EVIDENCE CRYPTOGRAPHICALLY VERIFIED.", fg="black", bg="green", bold=True)
+        click.echo(f"  ├─ Run ID:      {result['run_id']}")
+        click.echo(f"  ├─ SHA-256:     {result['hash']}")
+        click.echo(f"  └─ Key Version: {result['key_version'].split('/')[-1]}")
+    except Exception as e:
+        click.secho("FAIL", fg="red", bold=True)
+        click.echo()
+        click.secho("[STATUS] EVIDENCE INTEGRITY COMPROMISED.", fg="white", bg="red", bold=True)
+        click.secho(f"  └─ {str(e)}", fg="red")
+        raise click.exceptions.Exit(1)
+
+@evidence.command(name="report")
+@click.argument("project_dir", type=click.Path(exists=True, file_okay=False, path_type=Path))
+def render_report(project_dir: Path):
+    """Generate a human-readable HTML attestation report."""
+    from quantumd.evidence.renderer import render_html_report
+    click.echo("Generating HTML report...")
+    try:
+        report_path = render_html_report(project_dir)
+        click.secho(f"✅ Cryptographic Evidence Report generated: {report_path}", fg="green", bold=True)
+    except Exception as e:
+        click.secho(f"Error generating report: {e}", fg="red")
+        raise click.exceptions.Exit(1)
+
 if __name__ == "__main__":
     cli()
