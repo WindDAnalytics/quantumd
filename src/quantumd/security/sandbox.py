@@ -15,15 +15,23 @@ def load_circuit_isolated(project_dir: Path, source_file: Path) -> QuantumCircui
         
     script = f"""
 import sys
-import importlib.util
+from importlib.machinery import SourceFileLoader
+from importlib.util import module_from_spec, spec_from_loader
 from qiskit import qpy
 
 sys.path.insert(0, {str(project_dir.resolve().as_posix())!r})
+filepath = {str(source_file.resolve().as_posix())!r}
+module_name = "user_experiment"
 
-spec = importlib.util.spec_from_file_location("user_experiment", {str(source_file.resolve().as_posix())!r})
-user_module = importlib.util.module_from_spec(spec)
-sys.modules["user_experiment"] = user_module
-spec.loader.exec_module(user_module)
+loader = SourceFileLoader(module_name, filepath)
+spec = spec_from_loader(module_name, loader)
+
+if spec is None:
+    raise RuntimeError(f"Unable to create Python module specification for {{filepath}}")
+
+user_module = module_from_spec(spec)
+sys.modules[module_name] = user_module
+loader.exec_module(user_module)
 
 func = None
 for name in ["get_circuit", "build_circuit", "create_circuit", "experiment"]:

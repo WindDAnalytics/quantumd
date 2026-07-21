@@ -184,7 +184,7 @@ def fix(project_dir: Path):
                 click.secho(f" PASS ({eq_result['decision']})", fg="green", bold=True)
                 
                 repair_id = f"QFIX-{datetime.now(timezone.utc).strftime('%Y%m%d')}-{uuid.uuid4().hex[:8]}"
-                backup_file = project_path / "src" / f"experiment.py.bak.{repair_id}"
+                backup_file = project_path / "src" / f"experiment.py.bak.{repair_id}.py"
                 
                 shutil.copy(target_file, backup_file)
                 temp_repair_file.rename(target_file)

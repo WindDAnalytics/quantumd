@@ -4,6 +4,8 @@ import hashlib
 import json
 import os
 import uuid
+import os
+from quantumd.evidence.signing import sign_payload_with_kms
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -115,11 +117,20 @@ class EvidenceBuilder:
 
         evidence_hash = hashlib.sha256(canonical_payload).hexdigest()
 
-        self.evidence["integrity"] = {
-            "canonical_payload_sha256": evidence_hash,
-            "signed": False,
-            "signature_status": "NOT_IMPLEMENTED",
-        }
+        # Attempt GCP KMS Signature if configured
+        kms_key = os.environ.get("QUANTUMD_KMS_KEY_VERSION")
+        if kms_key:
+            sig_data = sign_payload_with_kms(evidence_hash, kms_key)
+            self.evidence["integrity"] = {
+                "canonical_payload_sha256": evidence_hash,
+                **sig_data
+            }
+        else:
+            self.evidence["integrity"] = {
+                "canonical_payload_sha256": evidence_hash,
+                "signed": False,
+                "signature_status": "NO_KEY_PROVIDED",
+            }
 
         filepath = self.runs_dir / f"{self.run_id}.json"
         rendered = json.dumps(
