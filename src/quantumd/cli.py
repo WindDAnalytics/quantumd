@@ -8,6 +8,8 @@ from quantumd.evidence.builder import EvidenceBuilder
 from quantumd.gates.circuit_structure import check_circuit_structure
 from quantumd.gates.classical_baseline import check_classical_baseline
 from quantumd.gates.code_validation import validate_code
+from quantumd.gates.equivalence import load_circuit_from_file
+from quantumd.adapters.mqt_adapter import check_equivalence
 from quantumd.manifest.validator import load_and_validate_manifest
 
 
@@ -64,7 +66,6 @@ def verify(project_dir: Path):
     click.echo(f"Run ID: {bundle.run_id}\n")
 
     click.secho("[GATE 1] Manifest Validation: ", nl=False)
-
     try:
         manifest = load_and_validate_manifest(project_path)
         manifest_hash = manifest.get("_internal", {}).get("hash")
@@ -75,7 +76,6 @@ def verify(project_dir: Path):
         deny(bundle, "manifest_validation", error)
 
     click.secho("[GATE 2] Code Integrity:      ", nl=False)
-
     try:
         entrypoint = manifest.get("implementation", {}).get("entrypoint")
         if not entrypoint:
@@ -88,7 +88,6 @@ def verify(project_dir: Path):
         deny(bundle, "code_integrity", error)
 
     click.secho("[GATE 3] Circuit Structure:   ", nl=False)
-
     try:
         check_circuit_structure(project_path, manifest)
         bundle.add_gate_result("circuit_structure", "PASS")
@@ -96,8 +95,30 @@ def verify(project_dir: Path):
     except Exception as error:
         deny(bundle, "circuit_structure", error)
 
-    click.secho("[GATE 8] Classical Baseline:  ", nl=False)
+    click.secho("[GATE 4] Repair Equivalence:  ", nl=False)
+    try:
+        src_dir = project_path / "src"
+        backups = list(src_dir.glob("experiment.py.bak.*"))
+        
+        if not backups:
+            bundle.add_gate_result("repair_equivalence", "SKIPPED", {"details": "No repairs applied."})
+            click.secho("SKIPPED", fg="black", bold=True)
+        else:
+            latest_backup = max(backups, key=lambda p: p.stat().st_mtime)
+            original_qc = load_circuit_from_file(latest_backup, "orig_mod")
+            repaired_qc = load_circuit_from_file(src_dir / "experiment.py", "rep_mod")
+            
+            eq_result = check_equivalence(original_qc, repaired_qc)
+            bundle.add_gate_result("repair_equivalence", eq_result["status"], eq_result)
+            
+            if eq_result["status"] == "PASS":
+                click.secho(f"PASS ({eq_result['decision']})", fg="green", bold=True)
+            else:
+                raise ValueError(f"Repair rejected: Semantics not preserved ({eq_result['decision']}).")
+    except Exception as error:
+        deny(bundle, "repair_equivalence", error)
 
+    click.secho("[GATE 8] Classical Baseline:  ", nl=False)
     try:
         baseline_result = check_classical_baseline(project_path, manifest)
         bundle.add_gate_result("classical_baseline", baseline_result["status"], {"message": baseline_result["details"]})
@@ -149,21 +170,39 @@ def fix(project_dir: Path):
     
     gate_3 = next((g for g in evidence.get("gates", []) if g["gate"] == "circuit_structure"), None)
     
-    if gate_3 and gate_3.get("status") == "FAIL" and "Premature Measurement" in gate_3.get("details", {}).get("message", ""):
+    if gate_3 and gate_3.get("status") == "FAIL" and "MID_CIRCUIT_MEASUREMENT_NOT_PERMITTED" in gate_3.get("details", {}).get("message", ""):
         click.echo(f"Found structural defect in Run ID: {evidence['run_id']}")
-        click.secho("Applying constrained physical repair (deferring measurements to end of circuit)...", fg="cyan")
+        click.secho("1. Proposing constrained physical repair (deferring measurements)...", fg="cyan")
         
         target_file = project_path / "src" / "experiment.py"
+        temp_repair_file = project_path / "src" / ".experiment_repair.tmp.py"
         backup_file = project_path / "src" / f"experiment.py.bak.{evidence['run_id']}"
-        shutil.copy(target_file, backup_file)
         
         content = target_file.read_text(encoding="utf-8")
         content = content.replace("    # 🚨 FATAL DEFECT: The AI measures early\n    qc.measure(0, 0)\n", "")
         content = content.replace("    qc.measure(1, 1)\n", "    qc.measure(0, 0)\n    qc.measure(1, 1)\n")
-        target_file.write_text(content, encoding="utf-8")
+        temp_repair_file.write_text(content, encoding="utf-8")
         
-        click.secho(f"✅ Repair applied successfully. Original source backed up to {backup_file.name}", fg="green")
-        click.secho("Please re-run `quantumd verify` to evaluate the repaired circuit.", fg="cyan")
+        click.secho("2. [GATE 4] Pre-flight Semantic Equivalence Check (MQT QCEC)...", fg="yellow", nl=False)
+        try:
+            original_qc = load_circuit_from_file(target_file, "orig_mod_fix")
+            repaired_qc = load_circuit_from_file(temp_repair_file, "rep_mod_fix")
+            
+            eq_result = check_equivalence(original_qc, repaired_qc)
+            
+            if eq_result["status"] == "PASS":
+                click.secho(f" PASS ({eq_result['decision']})", fg="green", bold=True)
+                shutil.copy(target_file, backup_file)
+                temp_repair_file.rename(target_file)
+                click.secho(f"✅ Repair applied and mathematically validated. Original backed up to {backup_file.name}", fg="green")
+                click.secho("Please re-run `quantumd verify` to evaluate the repaired circuit.", fg="cyan")
+            else:
+                click.secho(f" FAIL ({eq_result['decision']})", fg="red", bold=True)
+                click.secho("Repair aborted. The proposed physical fix altered the mathematics of the circuit.", fg="red")
+                temp_repair_file.unlink()
+        except Exception as e:
+            click.secho(f" ERROR: {str(e)}", fg="red", bold=True)
+            temp_repair_file.unlink()
     else:
         click.echo("No physical structural repairs required or supported for current evidence.")
 

@@ -13,7 +13,6 @@ def check_circuit_structure(project_dir: Path, manifest: dict):
     spec.loader.exec_module(user_module)
     sys.path.pop(0)
     
-    # Look for a common entrypoint name
     func = None
     for name in ["get_circuit", "build_circuit", "create_circuit", "experiment"]:
         if hasattr(user_module, name):
@@ -28,7 +27,6 @@ def check_circuit_structure(project_dir: Path, manifest: dict):
     except Exception as e:
         raise RuntimeError(f"Circuit generation failed: {str(e)}")
     
-    # LINTING RULE: Detect premature measurements
     measured_qubits = set()
     
     for instruction in qc.data:
@@ -42,9 +40,11 @@ def check_circuit_structure(project_dir: Path, manifest: dict):
             for q in qargs:
                 if q in measured_qubits:
                     raise ValueError(
-                        f"Premature Measurement! Gate '{gate.name}' "
-                        f"was applied to a qubit AFTER it was measured. "
-                        "This violates physical QPU constraints."
+                        "MID_CIRCUIT_MEASUREMENT_NOT_PERMITTED\n\n"
+                        "The declared execution target or verification profile does not permit\n"
+                        "a measurement before subsequent quantum operations.\n\n"
+                        "Execution denied because the workload is incompatible with the\n"
+                        "declared target capabilities and experiment contract."
                     )
                         
     return True
