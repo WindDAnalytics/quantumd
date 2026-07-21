@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "QuantumExperiment",
+  "type": "object",
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "intent",
+    "contract",
+    "implementation",
+    "verification",
+    "classical_baselines",
+    "execution",
+    "security",
+    "approval",
+    "evidence"
+  ],
+  "properties": {
+    "apiVersion": { "type": "string" },
+    "kind": { "type": "string" },
+    "metadata": {
+      "type": "object",
+      "required": ["name", "owner", "purpose"]
+    },
+    "intent": {
+      "type": "object",
+      "required": ["task", "hypothesis", "frozen"],
+      "properties": {
+        "frozen": { "type": "boolean" }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "required": ["profile"]
+    }
+  }
+}

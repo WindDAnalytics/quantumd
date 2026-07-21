@@ -1,0 +1,90 @@
+apiVersion: quantumd.ai/v0.1
+kind: QuantumExperiment
+
+metadata:
+  name: breast-cancer-quantum-kernel
+  owner: local-user
+  purpose: research
+  labels:
+    domain: quantum-ml
+
+intent:
+  task: binary-classification
+  hypothesis: >
+    Evaluate whether the declared quantum kernel meets the
+    pre-registered utility threshold under noisy simulation.
+  frozen: true
+
+inputs:
+  dataset:
+    path: data/dataset.csv
+    sha256: REQUIRED
+  target_column: diagnosis
+  train_test_split:
+    test_size: 0.20
+    random_seed: 1729
+
+contract:
+  minimum_test_accuracy: 0.75
+  maximum_accuracy_drop_noisy: 0.12
+  required_output_labels: [0, 1]
+
+implementation:
+  framework: qiskit
+  entrypoint: src/experiment.py
+  circuit_export: openqasm3
+
+verification:
+  profile: quantum_ml_strict
+  repair_policy:
+    enabled: true
+    maximum_attempts: 2
+    may_change:
+      - transpiler_optimization
+      - shot_count
+      - implementation_defects
+    may_not_change:
+      - dataset_split
+      - acceptance_thresholds
+      - classical_baselines
+      - declared_hypothesis
+
+classical_baselines:
+  - algorithm: rbf_svm
+    parameters:
+      C: 1.0
+      gamma: scale
+  - algorithm: logistic_regression
+  - algorithm: random_forest
+
+execution:
+  preferred_target: noisy_simulator
+  permitted_targets:
+    - ideal_simulator
+    - noisy_simulator
+    - ibm_qpu
+  limits:
+    maximum_qubits: 12
+    maximum_transpiled_depth: 500
+    maximum_shots: 20000
+    maximum_qpu_runtime_seconds: 60
+    maximum_cost_usd: 10.00
+
+security:
+  credential_access: brokered
+  allowed_providers:
+    - ibm_quantum
+  data_egress: prohibited
+  retain_raw_provider_payloads: false
+
+approval:
+  qpu_execution: human_required
+
+evidence:
+  sign: true
+  include_source_snapshot: true
+  include_environment_lock: true
+  report_formats:
+    - json
+    - html
+    - pdf

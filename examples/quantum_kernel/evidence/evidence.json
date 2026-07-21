@@ -1,0 +1,24 @@
+{
+  "schema_version": "quantumd.ai/evidence/v0.1",
+  "timestamp": "2026-07-21T02:23:55.206375+00:00",
+  "project": "quantum_kernel",
+  "hashes": {
+    "manifest": "76622b0ad9a5f26447c263b8c736bc77763e6c11fdb0782a885f7576377d41bc",
+    "source": "28d111fe21db6ffb240cd9d281baeea8c3d08bd36c959c42584c296a2ac868c1"
+  },
+  "gates": {
+    "manifest_validation": {
+      "status": "PASS",
+      "details": null
+    },
+    "code_integrity": {
+      "status": "PASS",
+      "details": null
+    },
+    "circuit_structure": {
+      "status": "FAIL",
+      "details": "Premature Measurement! Gate 'cx' was applied to a qubit AFTER it was measured. This violates physical QPU constraints."
+    }
+  },
+  "final_decision": "HARDWARE_DEPLOYMENT_DENIED"
+}
