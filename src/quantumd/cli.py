@@ -227,9 +227,137 @@ def doctor():
     click.echo("QuantumD Doctor: Checking environment health...")
 
 @cli.command()
-@click.argument("project_dir", type=click.Path(exists=True, file_okay=False, path_type=Path), required=False)
-def run(project_dir: Path | None):
-    click.echo("QuantumD Run: Checking authorization and execution limits...")
+@click.argument("project_dir", type=click.Path(exists=True, file_okay=False, path_type=Path))
+@click.option("--evidence-run", required=False, help="Immutable Verification Run ID")
+@click.option("--latest", is_flag=True, help="Use the latest verification pointer")
+@click.option("--target", required=True, help="Execution target (e.g., aer-simulator)")
+@click.option("--shots", type=int, default=1024, help="Number of shots")
+@click.option("--seed", type=int, default=1729, help="Simulator seed")
+@click.option("--allow-unsigned-receipt", is_flag=True, help="Allow unsigned execution receipts")
+def run(project_dir: Path, evidence_run: str, latest: bool, target: str, shots: int, seed: int, allow_unsigned_receipt: bool):
+    """Execute an evidence-bound trusted workload."""
+    import json
+    from quantumd.execution.snapshot import ReadOnlySnapshot
+    from quantumd.execution.authorization import AuthorizationEngine
+    from quantumd.execution.receipt import ExecutionReceiptBuilder
+    from quantumd.security.sandbox import load_circuit_isolated
+    from quantumd.adapters.aer_adapter import execute_on_aer
+    from quantumd.manifest.validator import load_and_validate_manifest
+    
+    click.secho("=== QuantumD Evidence-Bound Trusted Execution ===", bold=True, fg="blue")
+    project_path = project_dir.resolve()
+    
+    if not evidence_run and not latest:
+        click.secho("[STATUS] EXECUTION DENIED. Must specify --evidence-run <ID> or use --latest.", fg="white", bg="red", bold=True)
+        raise click.exceptions.Exit(1)
+        
+    if latest:
+        pointer = project_path / "evidence" / "latest.json"
+        if pointer.exists():
+            evidence_run = json.loads(pointer.read_text(encoding="utf-8")).get("run_id")
+            
+    if not evidence_run:
+        click.secho("[STATUS] EXECUTION DENIED. No run ID resolved.", fg="white", bg="red", bold=True)
+        raise click.exceptions.Exit(1)
+
+    record_path = project_path / "evidence" / "runs" / f"{evidence_run}.json"
+    if not record_path.exists():
+        click.secho(f"[STATUS] EXECUTION DENIED. Evidence record {evidence_run} not found.", fg="white", bg="red", bold=True)
+        raise click.exceptions.Exit(1)
+
+    evidence_data = json.loads(record_path.read_text(encoding="utf-8"))
+    payload_hash = evidence_data.get("integrity", {}).get("canonical_payload_sha256", "")
+    receipt = ExecutionReceiptBuilder(project_path, evidence_run, payload_hash)
+    
+    def fail_denied(code, msg):
+        click.secho("FAIL", fg="red", bold=True)
+        click.echo(f"\n  └─ {msg}\n")
+        click.secho(f"[STATUS] EXECUTION DENIED: {code}", fg="white", bg="red", bold=True)
+        try:
+            r_path = receipt.record_denial(code, msg, allow_unsigned_receipt)
+            click.secho(f"  └─ Denial Receipt: {r_path.relative_to(project_path)}", fg="yellow")
+        except Exception as e:
+            click.secho(f"  └─ Could not generate receipt: {e}", fg="red")
+        raise click.exceptions.Exit(1)
+
+    click.echo(f"Authorization record: {evidence_run}")
+    click.echo(f"Target:               {target}")
+    click.echo(f"Shots:                {shots}\n")
+
+    with ReadOnlySnapshot(project_path) as snapshot_dir:
+        click.secho("[CHECK 1] Cryptographic Authorization..... ", nl=False)
+        try:
+            auth_data = AuthorizationEngine.authorize(project_path, evidence_run, target)
+            click.secho("PASS", fg="green", bold=True)
+        except Exception as e:
+            fail_denied("AUTHORIZATION_FAILED", str(e))
+            
+        click.secho("[CHECK 2] Snapshot Identity............... ", nl=False)
+        try:
+            AuthorizationEngine.check_snapshot(snapshot_dir, auth_data["evidence"])
+            click.secho("PASS", fg="green", bold=True)
+        except Exception as e:
+            fail_denied("IDENTITY_MISMATCH", str(e))
+
+        click.secho("[CHECK 3] Target Policy & Limits.......... ", nl=False)
+        try:
+            manifest = load_and_validate_manifest(snapshot_dir)
+            exec_config = manifest.get("execution", {})
+            permitted = exec_config.get("permitted_targets", [])
+            
+            if target == "aer-simulator":
+                if "ideal_simulator" not in permitted and "noisy_simulator" not in permitted:
+                    raise PermissionError(f"Target '{target}' not permitted by manifest: {permitted}")
+            elif target not in permitted:
+                raise PermissionError(f"Target '{target}' not permitted by manifest.")
+                
+            max_shots = exec_config.get("limits", {}).get("maximum_shots", 20000)
+            if shots > max_shots:
+                raise PermissionError(f"Requested shots ({shots}) exceeds limit ({max_shots}).")
+            click.secho("PASS", fg="green", bold=True)
+        except Exception as e:
+            fail_denied("POLICY_VIOLATION", str(e))
+            
+        click.echo()
+        click.secho(f"[EXECUTION] Aer Simulator................. ", nl=False, fg="cyan")
+        try:
+            source_path = snapshot_dir / auth_data["evidence"]["hashes"]["source"]["path"]
+            logical_qc = load_circuit_isolated(snapshot_dir, source_path)
+            counts, compiled_qc = execute_on_aer(logical_qc, shots, seed)
+            click.secho("COMPLETED", fg="green", bold=True)
+            
+            manifest_hash = auth_data["evidence"]["hashes"].get("manifest_sha256")
+            source_hash = auth_data["evidence"]["hashes"]["source"]["sha256"]
+            
+            receipt.set_workload(manifest_hash, source_hash, logical_qc, compiled_qc, seed)
+            receipt_path = receipt.record_success(target, shots, counts, allow_unsigned_receipt)
+            
+            click.echo("\nResult Distribution:")
+            for state, count in list(counts.items())[:5]:
+                click.echo(f"  |{state}> : {count}")
+                
+            click.echo(f"\nExecution receipt:\n  {receipt_path.relative_to(project_path)}")
+            click.echo()
+            
+            if receipt.receipt.get("integrity", {}).get("signed"):
+                click.secho("[STATUS] EXECUTION COMPLETED AND ATTESTED", fg="black", bg="green", bold=True)
+            elif allow_unsigned_receipt:
+                click.secho("[STATUS] EXECUTION COMPLETED (UNSIGNED RECEIPT ALLOWED)", fg="black", bg="yellow", bold=True)
+            else:
+                click.secho("[STATUS] EXECUTION NOT FINALIZED (ATTESTATION FAILED)", fg="white", bg="red", bold=True)
+                raise click.exceptions.Exit(1)
+                
+        except click.exceptions.Exit:
+            raise
+        except Exception as e:
+            click.secho("FAILED", fg="red", bold=True)
+            try:
+                r_path = receipt.record_failure("RUNTIME_ERROR", str(e), allow_unsigned_receipt)
+                click.secho(f"  └─ Failure Receipt: {r_path.relative_to(project_path)}", fg="yellow")
+            except Exception as re:
+                click.secho(f"  └─ Could not generate receipt: {re}", fg="red")
+            raise click.exceptions.Exit(1)
+
 
 @cli.command()
 @click.argument("prompt")

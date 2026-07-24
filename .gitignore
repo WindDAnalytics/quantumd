@@ -28,3 +28,4 @@ fix_*.py
 .idea/
 .repairs/
 **/evidence/reports/
+**/evidence/executions/

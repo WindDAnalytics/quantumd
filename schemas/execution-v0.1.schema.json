@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "QuantumExecutionReceipt",
+  "type": "object",
+  "required": [
+    "schema_version", "execution_id", "timestamp", "status",
+    "authorization", "workload", "target", "integrity"
+  ]
+}
