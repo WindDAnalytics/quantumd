@@ -430,5 +430,25 @@ from quantumd.reconciliation import qexec as _qexec_command
 if "qexec" not in cli.commands:
     cli.add_command(_qexec_command)
 
+
+# Register Evidence Graph and independent offline verification.
+from quantumd.chain import chain as _chain_command
+from quantumd.chain import verify_chain as _verify_chain_command
+
+if "chain" not in cli.commands:
+    cli.add_command(_chain_command)
+
+if "verify-chain" not in cli.commands:
+    cli.add_command(_verify_chain_command)
+
+
+# Register non-destructive adversarial evidence-chain tests.
+from quantumd.adversarial import (
+    adversarial_test as _adversarial_test_command,
+)
+
+if "adversarial-test" not in cli.commands:
+    cli.add_command(_adversarial_test_command)
+
 if __name__ == "__main__":
     cli()
