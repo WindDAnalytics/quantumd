@@ -29,3 +29,4 @@ fix_*.py
 .repairs/
 **/evidence/reports/
 **/evidence/executions/
+**/evidence/ibm-smoke/

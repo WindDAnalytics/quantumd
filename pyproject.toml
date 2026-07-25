@@ -19,6 +19,8 @@ dependencies = [
     "google-cloud-kms>=2.0.0",
     "cryptography>=41.0.0",
     "crcmod>=1.7",
+    "qiskit-ibm-runtime==0.48.0",
+    "google-cloud-secret-manager==2.30.0",
     "qiskit-aer>=0.14.0"
 ]
 
