@@ -1,35 +1,155 @@
 import base64
+from typing import Any
+
+import crcmod.predefined
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec, utils
 from google.cloud import kms
 
-def sign_payload_with_kms(payload_hash_hex: str, key_version_name: str) -> dict:
-    """Sends the SHA-256 hash to GCP KMS for an asymmetric ECDSA signature."""
-    client = kms.KeyManagementServiceClient()
-    
-    # KMS requires the raw bytes of the digest
-    digest_bytes = bytes.fromhex(payload_hash_hex)
-    digest = {"sha256": digest_bytes}
-    
+
+def _crc32c(data: bytes) -> int:
+    """Calculate the Castagnoli CRC32C checksum required by Cloud KMS."""
+    checksum = crcmod.predefined.mkPredefinedCrcFun("crc-32c")
+    return checksum(data)
+
+
+def _integer_value(value: Any) -> int:
+    """Handle either a protobuf wrapper or a plain integer."""
+    return int(getattr(value, "value", value))
+
+
+def sign_payload_with_kms(
+    payload_hash_hex: str,
+    key_version_name: str,
+) -> dict:
+    """
+    Sign a precomputed SHA-256 digest with Cloud KMS and independently
+    verify the returned ECDSA signature using the KMS public key.
+    """
     try:
+        digest_bytes = bytes.fromhex(payload_hash_hex)
+
+        if len(digest_bytes) != 32:
+            raise ValueError(
+                "EC_SIGN_P256_SHA256 requires a 32-byte SHA-256 digest."
+            )
+
+        client = kms.KeyManagementServiceClient()
+        digest_crc32c = _crc32c(digest_bytes)
+
         response = client.asymmetric_sign(
             request={
                 "name": key_version_name,
-                "digest": digest,
+                "digest": {"sha256": digest_bytes},
+                "digest_crc32c": digest_crc32c,
             }
         )
-        
+
+        # Confirm Cloud KMS used the intended key version.
+        if response.name != key_version_name:
+            raise RuntimeError(
+                "Cloud KMS returned a different key-version resource name."
+            )
+
+        # Confirm KMS received and checked the digest checksum.
+        if not response.verified_digest_crc32c:
+            raise RuntimeError(
+                "Cloud KMS did not verify the request digest CRC32C."
+            )
+
+        # Confirm the signature was not corrupted in transit.
+        returned_signature_crc32c = _integer_value(
+            response.signature_crc32c
+        )
+        calculated_signature_crc32c = _crc32c(response.signature)
+
+        if returned_signature_crc32c != calculated_signature_crc32c:
+            raise RuntimeError(
+                "Cloud KMS signature CRC32C verification failed."
+            )
+
+        # Retrieve the public key belonging to the exact signing version.
+        public_key_response = client.get_public_key(
+            request={"name": key_version_name}
+        )
+
+        if public_key_response.name != key_version_name:
+            raise RuntimeError(
+                "Cloud KMS returned a public key for a different key version."
+            )
+
+        expected_algorithm = (
+            kms.CryptoKeyVersion.CryptoKeyVersionAlgorithm
+            .EC_SIGN_P256_SHA256
+        )
+
+        if public_key_response.algorithm != expected_algorithm:
+            raise RuntimeError(
+                "Unexpected KMS key algorithm: "
+                f"{public_key_response.algorithm!s}"
+            )
+
+        pem_bytes = public_key_response.pem.encode("utf-8")
+
+        returned_pem_crc32c = _integer_value(
+            public_key_response.pem_crc32c
+        )
+        calculated_pem_crc32c = _crc32c(pem_bytes)
+
+        if returned_pem_crc32c != calculated_pem_crc32c:
+            raise RuntimeError(
+                "Cloud KMS public-key PEM CRC32C verification failed."
+            )
+
+        public_key = serialization.load_pem_public_key(pem_bytes)
+
+        if not isinstance(public_key, ec.EllipticCurvePublicKey):
+            raise TypeError(
+                "Cloud KMS returned a non-elliptic-curve public key."
+            )
+
+        # KMS signed the existing SHA-256 digest, so use Prehashed to avoid
+        # hashing the digest a second time.
+        public_key.verify(
+            response.signature,
+            digest_bytes,
+            ec.ECDSA(utils.Prehashed(hashes.SHA256())),
+        )
+
         return {
             "provider": "gcp-cloud-kms",
             "algorithm": "EC_SIGN_P256_SHA256",
             "key_version": key_version_name,
-            "value_base64": base64.b64encode(response.signature).decode("utf-8"),
+            "value_base64": base64.b64encode(
+                response.signature
+            ).decode("utf-8"),
             "signature_status": "KMS_SIGNED",
             "provider_response_integrity_verified": True,
-            "public_key_signature_verified": False,
-            "signed": True
+            "public_key_response_integrity_verified": True,
+            "public_key_signature_verified": True,
+            "signed": True,
         }
-    except Exception as e:
+
+    except InvalidSignature:
+        return {
+            "signed": False,
+            "signature_status": "PUBLIC_KEY_VERIFICATION_FAILED",
+            "provider_response_integrity_verified": True,
+            "public_key_signature_verified": False,
+            "error_type": "InvalidSignature",
+            "error_message": (
+                "The KMS signature did not verify against the "
+                "retrieved public key."
+            ),
+        }
+
+    except Exception as exc:
         return {
             "signed": False,
             "signature_status": "FAILED",
-            "error_message": str(e)
+            "provider_response_integrity_verified": False,
+            "public_key_signature_verified": False,
+            "error_type": type(exc).__name__,
+            "error_message": str(exc),
         }

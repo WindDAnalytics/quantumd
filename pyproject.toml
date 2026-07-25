@@ -18,6 +18,7 @@ dependencies = [
     "mqt.qcec>=2.5.0",
     "google-cloud-kms>=2.0.0",
     "cryptography>=41.0.0",
+    "crcmod>=1.7",
     "qiskit-aer>=0.14.0"
 ]
 
