@@ -418,5 +418,17 @@ from quantumd.approval import approve as _approve_command
 if "approve" not in cli.commands:
     cli.add_command(_approve_command)
 
+
+# Register governed, single-use IBM submission.
+from quantumd.submission import submit as _submit_command
+if "submit" not in cli.commands:
+    cli.add_command(_submit_command)
+
+
+# Register IBM job reconciliation and signed QEXEC receipts.
+from quantumd.reconciliation import qexec as _qexec_command
+if "qexec" not in cli.commands:
+    cli.add_command(_qexec_command)
+
 if __name__ == "__main__":
     cli()
