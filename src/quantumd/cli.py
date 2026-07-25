@@ -408,5 +408,15 @@ def render_report(project_dir: Path):
         click.secho(f"Error generating report: {e}", fg="red")
         raise click.exceptions.Exit(1)
 
+
+# Register governed IBM execution commands.
+from quantumd.ibm.commands import register_ibm_commands as _register_ibm_commands
+_register_ibm_commands(cli)
+
+# Register cryptographically governed human approval.
+from quantumd.approval import approve as _approve_command
+if "approve" not in cli.commands:
+    cli.add_command(_approve_command)
+
 if __name__ == "__main__":
     cli()
