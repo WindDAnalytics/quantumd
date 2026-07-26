@@ -450,5 +450,61 @@ from quantumd.adversarial import (
 if "adversarial-test" not in cli.commands:
     cli.add_command(_adversarial_test_command)
 
+
+# QUANTUMD_PHASE4A_INIT_COMMAND
+@cli.command("init")
+@click.argument(
+    "path",
+    required=False,
+    default=".",
+    type=click.Path(file_okay=False),
+)
+@click.option(
+    "--name",
+    "project_name",
+    default=None,
+    help="Name written into the generated project.",
+)
+@click.option(
+    "--force",
+    is_flag=True,
+    help="Overwrite existing QuantumD starter files.",
+)
+def init_project_command(
+    path: str,
+    project_name: str | None,
+    force: bool,
+) -> None:
+    'Initialize a simulator-first governed project.'
+    from pathlib import Path
+
+    from quantumd.project_init import initialize_project
+
+    destination = Path(path).expanduser()
+
+    try:
+        created = initialize_project(
+            destination,
+            project_name=project_name,
+            force=force,
+        )
+    except (FileExistsError, ValueError) as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    resolved = destination.resolve()
+
+    click.echo("=== QuantumD Project Initialization ===")
+    click.echo(f"Project:              {resolved}")
+    click.echo(f"Files created:        {len(created)}")
+    click.echo("")
+    click.echo("[READY] Simulator-first governed project initialized.")
+    click.echo("")
+    click.echo("Next:")
+    click.echo(f"  cd {resolved}")
+    click.echo("  quantumd verify .")
+    click.echo("  quantumd run . --target aer-simulator")
+    click.echo("  quantumd chain verify --latest")
+
+
 if __name__ == "__main__":
     cli()

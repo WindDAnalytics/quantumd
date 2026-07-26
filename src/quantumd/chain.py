@@ -321,7 +321,7 @@ def _resolve_receipt(
     return candidates[0]
 
 
-def _load_chain(
+def _load_ibm_chain(
     project: Path,
     execution_id: str | None,
     submission_id: str | None,
@@ -411,7 +411,7 @@ def _load_chain(
     }
 
 
-def _verify_chain(context: dict[str, Any]) -> list[str]:
+def _verify_ibm_chain(context: dict[str, Any]) -> list[str]:
     plan = context["plan"]
     approval = context["approval"]
     consumption = context["consumption"]
@@ -873,7 +873,7 @@ def _verify_chain(context: dict[str, Any]) -> list[str]:
     ]
 
 
-def _display_chain(context: dict[str, Any]) -> None:
+def _display_ibm_chain(context: dict[str, Any]) -> None:
     plan = context["plan"]
     approval = context["approval"]
     submission = context["submission"]
@@ -953,6 +953,702 @@ def _display_chain(context: dict[str, Any]) -> None:
         f"Receipt:        "
         f"{context['receipt_path']}"
     )
+
+
+
+
+# QUANTUMD_PHASE4A_LOCAL_CHAIN
+
+def _verify_local_record(
+    public_key: Any,
+    record: dict[str, Any],
+    label: str,
+) -> bytes:
+    """Verify records signed with an empty integrity object."""
+    signature = _decode_signature(record, label)
+
+    payload = copy.deepcopy(record)
+    payload["integrity"] = {}
+
+    payload_bytes = _canonical(payload)
+    digest = hashlib.sha256(payload_bytes).digest()
+
+    _require(
+        f"{label} canonical hash",
+        digest.hex(),
+        record["integrity"]["canonical_payload_sha256"],
+    )
+
+    _verify_digest_signature(
+        public_key,
+        signature,
+        digest,
+        label,
+    )
+
+    return signature
+
+def _is_local_receipt(receipt: dict[str, Any]) -> bool:
+    target = receipt.get("target")
+    return (
+        isinstance(target, dict)
+        and target.get("provider") == "local"
+    )
+
+
+def _require_sha256(label: str, value: Any) -> str:
+    if not isinstance(value, str):
+        raise ChainVerificationError(
+            f"{label} is not a SHA-256 string."
+        )
+
+    normalized = value.lower()
+
+    if (
+        len(normalized) != 64
+        or any(
+            character not in "0123456789abcdef"
+            for character in normalized
+        )
+    ):
+        raise ChainVerificationError(
+            f"{label} is not a valid SHA-256 digest."
+        )
+
+    return normalized
+
+
+def _safe_project_file(
+    project: Path,
+    relative_value: Any,
+    label: str,
+) -> Path:
+    if not isinstance(relative_value, str) or not relative_value:
+        raise ChainVerificationError(
+            f"{label} path is invalid: {relative_value!r}"
+        )
+
+    relative_path = Path(relative_value)
+
+    if relative_path.is_absolute() or ".." in relative_path.parts:
+        raise ChainVerificationError(
+            f"{label} path escapes the project: "
+            f"{relative_value!r}"
+        )
+
+    resolved = (project / relative_path).resolve()
+
+    try:
+        resolved.relative_to(project)
+    except ValueError as exc:
+        raise ChainVerificationError(
+            f"{label} path escapes the project: "
+            f"{relative_value!r}"
+        ) from exc
+
+    if not resolved.is_file():
+        raise ChainVerificationError(
+            f"{label} not found: {resolved}"
+        )
+
+    return resolved
+
+
+def _find_local_public_key(
+    project: Path,
+    verification: dict[str, Any],
+    receipt: dict[str, Any],
+) -> tuple[Path, Any]:
+    evidence_root = project / "evidence"
+
+    candidates = sorted(
+        {
+            *evidence_root.rglob("*.pem"),
+            *evidence_root.rglob("*.pub"),
+        }
+    )
+
+    if not candidates:
+        raise ChainVerificationError(
+            "No cached public key was found under evidence/. "
+            "Offline verification requires the signing public key."
+        )
+
+    failures: list[str] = []
+
+    for path in candidates:
+        try:
+            public_key = _load_public_key(path)
+            _verify_local_record(
+                public_key,
+                verification,
+                "QVERIFY",
+            )
+            _verify_local_record(
+                public_key,
+                receipt,
+                "QEXEC",
+            )
+            return path, public_key
+        except Exception as exc:
+            failures.append(
+                f"{path}: {type(exc).__name__}"
+            )
+
+    detail = "; ".join(failures[:5])
+
+    raise ChainVerificationError(
+        "No cached public key verifies both QVERIFY and "
+        f"the local QEXEC receipt. Candidates: {detail}"
+    )
+
+
+def _load_local_chain(
+    project: Path,
+    execution_id: str | None,
+    submission_id: str | None,
+    latest: bool,
+) -> dict[str, Any]:
+    if submission_id is not None:
+        raise ChainVerificationError(
+            "--submission-id applies only to remote-provider "
+            "execution chains."
+        )
+
+    project = project.resolve()
+    receipt_path = _resolve_receipt(
+        project,
+        execution_id,
+        None,
+        latest,
+    )
+    receipt_raw, receipt = _read_json(
+        receipt_path,
+        "Local QEXEC receipt",
+    )
+
+    if not _is_local_receipt(receipt):
+        raise ChainVerificationError(
+            "Selected receipt is not a local-provider execution."
+        )
+
+    execution_id_value = receipt.get("execution_id")
+
+    if (
+        not isinstance(execution_id_value, str)
+        or not execution_id_value.startswith("QEXEC-")
+    ):
+        raise ChainVerificationError(
+            f"Execution ID is invalid: {execution_id_value!r}"
+        )
+
+    for field in (
+        "submission_id",
+        "approval_id",
+        "plan_id",
+        "ibm",
+    ):
+        value = receipt.get(field)
+
+        if value is not None:
+            raise ChainVerificationError(
+                f"Local QEXEC must not declare {field}: "
+                f"{value!r}"
+            )
+
+    authorization = receipt.get("authorization")
+
+    if not isinstance(authorization, dict):
+        raise ChainVerificationError(
+            "Local QEXEC authorization is missing."
+        )
+
+    verification_run_id = authorization.get(
+        "verification_run_id"
+    )
+
+    if (
+        not isinstance(verification_run_id, str)
+        or not verification_run_id
+    ):
+        raise ChainVerificationError(
+            "Local QEXEC verification run ID is invalid."
+        )
+
+    verification_path = (
+        project
+        / "evidence"
+        / "runs"
+        / f"{verification_run_id}.json"
+    )
+    verification_raw, verification = _read_json(
+        verification_path,
+        "QVERIFY record",
+    )
+
+    execution_dir = receipt_path.parent
+    results = receipt.get("results")
+
+    if not isinstance(results, dict):
+        raise ChainVerificationError(
+            "Local QEXEC results descriptor is missing."
+        )
+
+    artifact = results.get("artifact")
+
+    if (
+        not isinstance(artifact, str)
+        or not artifact
+        or Path(artifact).name != artifact
+    ):
+        raise ChainVerificationError(
+            f"Local result artifact is invalid: {artifact!r}"
+        )
+
+    result_path = execution_dir / artifact
+
+    if not result_path.is_file():
+        raise ChainVerificationError(
+            f"Local result artifact not found: {result_path}"
+        )
+
+    result_raw, result_record = _read_json(
+        result_path,
+        "Local execution results",
+    )
+
+    public_key_path, public_key = _find_local_public_key(
+        project,
+        verification,
+        receipt,
+    )
+
+    return {
+        "chain_type": "local",
+        "project": project,
+        "execution_dir": execution_dir,
+        "receipt_path": receipt_path,
+        "receipt_raw": receipt_raw,
+        "receipt": receipt,
+        "verification_path": verification_path,
+        "verification_raw": verification_raw,
+        "verification": verification,
+        "result_path": result_path,
+        "result_raw": result_raw,
+        "result_record": result_record,
+        "public_key_path": public_key_path,
+        "public_key": public_key,
+        "execution_id": execution_id_value,
+        "verification_run_id": verification_run_id,
+        "submission_id": "N/A",
+        "approval_id": "N/A",
+        "plan_id": "N/A",
+    }
+
+
+def _verify_local_chain(
+    context: dict[str, Any],
+) -> list[str]:
+    project = context["project"]
+    receipt = context["receipt"]
+    verification = context["verification"]
+    result_record = context["result_record"]
+    public_key = context["public_key"]
+
+    _verify_local_record(
+        public_key,
+        verification,
+        "QVERIFY",
+    )
+    _verify_local_record(
+        public_key,
+        receipt,
+        "QEXEC",
+    )
+
+    verification_integrity = verification.get("integrity")
+    receipt_integrity = receipt.get("integrity")
+
+    if not isinstance(verification_integrity, dict):
+        raise ChainVerificationError(
+            "QVERIFY integrity record is missing."
+        )
+
+    if not isinstance(receipt_integrity, dict):
+        raise ChainVerificationError(
+            "QEXEC integrity record is missing."
+        )
+
+    _require(
+        "Local key-version lineage",
+        receipt_integrity.get("key_version"),
+        verification_integrity.get("key_version"),
+    )
+
+    _require_sha256(
+        "QVERIFY canonical payload",
+        verification_integrity.get(
+            "canonical_payload_sha256"
+        ),
+    )
+    _require_sha256(
+        "QEXEC canonical payload",
+        receipt_integrity.get(
+            "canonical_payload_sha256"
+        ),
+    )
+
+    _require(
+        "QEXEC ID",
+        receipt.get("execution_id"),
+        context["execution_id"],
+    )
+    _require(
+        "QVERIFY run ID",
+        verification.get("run_id"),
+        context["verification_run_id"],
+    )
+    _require(
+        "QEXEC status",
+        receipt.get("status"),
+        "EXECUTION_COMPLETED",
+    )
+    _require(
+        "QEXEC workload executed",
+        receipt.get("workload_executed"),
+        True,
+    )
+
+    decision = verification.get("final_decision")
+
+    if (
+        not isinstance(decision, str)
+        or not decision.startswith("VERIFIED")
+    ):
+        raise ChainVerificationError(
+            f"QVERIFY decision is not executable: {decision!r}"
+        )
+
+    authorization = receipt.get("authorization", {})
+
+    _require(
+        "Authorization verification run ID",
+        authorization.get("verification_run_id"),
+        context["verification_run_id"],
+    )
+    _require(
+        "Authorization signature status",
+        authorization.get("signature_verified"),
+        True,
+    )
+    _require(
+        "Authorization payload hash",
+        authorization.get(
+            "verification_payload_sha256"
+        ),
+        verification_integrity.get(
+            "canonical_payload_sha256"
+        ),
+    )
+
+    target = receipt.get("target")
+
+    if not isinstance(target, dict):
+        raise ChainVerificationError(
+            "Local target descriptor is missing."
+        )
+
+    _require(
+        "Execution provider",
+        target.get("provider"),
+        "local",
+    )
+    _require(
+        "Execution backend",
+        target.get("backend"),
+        "aer-simulator",
+    )
+
+    verification_hashes = verification.get("hashes")
+
+    if not isinstance(verification_hashes, dict):
+        raise ChainVerificationError(
+            "QVERIFY hash bindings are missing."
+        )
+
+    manifest_expected = _require_sha256(
+        "QVERIFY manifest hash",
+        verification_hashes.get("manifest_sha256"),
+    )
+
+    source_descriptor = verification_hashes.get("source")
+
+    if not isinstance(source_descriptor, dict):
+        raise ChainVerificationError(
+            "QVERIFY source descriptor is missing."
+        )
+
+    source_expected = _require_sha256(
+        "QVERIFY source hash",
+        source_descriptor.get("sha256"),
+    )
+
+    manifest_path = _safe_project_file(
+        project,
+        "experiment.yaml",
+        "Manifest",
+    )
+    source_path = _safe_project_file(
+        project,
+        source_descriptor.get("path"),
+        "Source",
+    )
+
+    _require(
+        "Current manifest hash",
+        _sha256_file(manifest_path),
+        manifest_expected,
+    )
+    _require(
+        "Current source hash",
+        _sha256_file(source_path),
+        source_expected,
+    )
+
+    workload = receipt.get("workload")
+
+    if not isinstance(workload, dict):
+        raise ChainVerificationError(
+            "Local QEXEC workload binding is missing."
+        )
+
+    _require(
+        "QEXEC manifest binding",
+        workload.get("manifest_sha256"),
+        manifest_expected,
+    )
+    _require(
+        "QEXEC source binding",
+        workload.get("source_sha256"),
+        source_expected,
+    )
+
+    logical = workload.get("logical_circuit")
+    executed = workload.get("executed_circuit")
+
+    if not isinstance(logical, dict):
+        raise ChainVerificationError(
+            "Logical circuit binding is missing."
+        )
+
+    if not isinstance(executed, dict):
+        raise ChainVerificationError(
+            "Executed circuit binding is missing."
+        )
+
+    _require_sha256(
+        "Logical circuit hash",
+        logical.get("sha256"),
+    )
+    _require_sha256(
+        "Executed circuit hash",
+        executed.get("sha256"),
+    )
+
+    results = receipt.get("results", {})
+    expected_result_hash = _require_sha256(
+        "QEXEC result hash",
+        results.get("sha256"),
+    )
+
+    _require(
+        "Result artifact hash",
+        _sha256_bytes(context["result_raw"]),
+        expected_result_hash,
+    )
+
+    if not isinstance(result_record, dict) or not result_record:
+        raise ChainVerificationError(
+            "Local results have no count mapping."
+        )
+
+    observed = 0
+
+    for bitstring, count in result_record.items():
+        if not isinstance(bitstring, str) or not bitstring:
+            raise ChainVerificationError(
+                "Local result key is invalid."
+            )
+
+        if (
+            isinstance(count, bool)
+            or not isinstance(count, int)
+            or count < 0
+        ):
+            raise ChainVerificationError(
+                f"Local result count is invalid: {count!r}"
+            )
+
+        observed += count
+
+    shots = receipt.get("shots")
+
+    if (
+        isinstance(shots, bool)
+        or not isinstance(shots, int)
+        or shots <= 0
+    ):
+        raise ChainVerificationError(
+            f"QEXEC shot count is invalid: {shots!r}"
+        )
+
+    _require(
+        "Observed and authorized shots",
+        observed,
+        shots,
+    )
+
+    finalized_at = _parse_time(
+        verification["finalized_at"],
+        "QVERIFY finalized_at",
+    )
+    executed_at = _parse_time(
+        receipt["timestamp"],
+        "QEXEC timestamp",
+    )
+
+    if executed_at < finalized_at:
+        raise ChainVerificationError(
+            "Local QEXEC predates its authorization."
+        )
+
+    return [
+        "QVERIFY and QEXEC cryptographic signatures",
+        "Single KMS key-version lineage",
+        "Executable verification decision",
+        "Exact authorization-to-QVERIFY binding",
+        "Current manifest and source identity",
+        "Exact QVERIFY-to-QEXEC workload binding",
+        "Logical and executed circuit identities",
+        "Result artifact SHA-256 binding",
+        "Observed shots equal authorized shots",
+        "Authorization predates execution",
+    ]
+
+
+def _display_local_chain(
+    context: dict[str, Any],
+) -> None:
+    verification = context["verification"]
+    receipt = context["receipt"]
+
+    rows = [
+        (
+            "QVERIFY",
+            context["verification_run_id"],
+            verification.get(
+                "final_decision",
+                "UNKNOWN",
+            ),
+        ),
+        (
+            "QEXEC",
+            context["execution_id"],
+            receipt.get("status", "UNKNOWN"),
+        ),
+    ]
+
+    print("=== QuantumD Local Evidence Graph ===")
+    print(
+        f"{'NODE':<12} {'IDENTIFIER':<42} STATUS"
+    )
+    print("-" * 86)
+
+    for node, identifier, status in rows:
+        print(
+            f"{node:<12} {str(identifier):<42} {status}"
+        )
+
+    print()
+    print(
+        f"Provider:       "
+        f"{receipt['target']['provider']}"
+    )
+    print(
+        f"Backend:        "
+        f"{receipt['target']['backend']}"
+    )
+    print(
+        f"Shots:          "
+        f"{receipt['shots']}"
+    )
+    print(
+        f"Results:        "
+        f"{context['result_record']}"
+    )
+    print(
+        f"Public key:     "
+        f"{context['public_key_path']}"
+    )
+    print(
+        f"Receipt:        "
+        f"{context['receipt_path']}"
+    )
+
+
+def _load_chain(
+    project: Path,
+    execution_id: str | None,
+    submission_id: str | None,
+    latest: bool,
+) -> dict[str, Any]:
+    project = project.resolve()
+    receipt_path = _resolve_receipt(
+        project,
+        execution_id,
+        submission_id,
+        latest,
+    )
+    _, receipt = _read_json(
+        receipt_path,
+        "QEXEC receipt",
+    )
+
+    if _is_local_receipt(receipt):
+        return _load_local_chain(
+            project,
+            execution_id,
+            submission_id,
+            latest,
+        )
+
+    context = _load_ibm_chain(
+        project,
+        execution_id,
+        submission_id,
+        latest,
+    )
+    context["chain_type"] = "ibm"
+    return context
+
+
+def _verify_chain(
+    context: dict[str, Any],
+) -> list[str]:
+    if context.get("chain_type") == "local":
+        return _verify_local_chain(context)
+
+    return _verify_ibm_chain(context)
+
+
+def _display_chain(
+    context: dict[str, Any],
+) -> None:
+    if context.get("chain_type") == "local":
+        _display_local_chain(context)
+        return
+
+    _display_ibm_chain(context)
 
 
 def _selection_options(function):
