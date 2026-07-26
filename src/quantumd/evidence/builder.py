@@ -120,7 +120,11 @@ class EvidenceBuilder:
         # Attempt GCP KMS Signature if configured
         kms_key = os.environ.get("QUANTUMD_KMS_KEY_VERSION")
         if kms_key:
-            sig_data = sign_payload_with_kms(evidence_hash, kms_key)
+            sig_data = sign_payload_with_kms(
+                evidence_hash,
+                kms_key,
+                evidence_root=self.evidence_root,
+            )
             self.evidence["integrity"] = {
                 "canonical_payload_sha256": evidence_hash,
                 **sig_data

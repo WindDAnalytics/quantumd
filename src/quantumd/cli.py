@@ -502,8 +502,8 @@ def init_project_command(
     click.echo("Next:")
     click.echo(f"  cd {resolved}")
     click.echo("  quantumd verify .")
-    click.echo("  quantumd run . --target aer-simulator")
-    click.echo("  quantumd chain verify --latest")
+    click.echo("  quantumd run . --target aer-simulator --latest")
+    click.echo("  quantumd verify-chain . --latest")
 
 
 if __name__ == "__main__":

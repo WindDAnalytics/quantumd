@@ -81,7 +81,11 @@ class ExecutionReceiptBuilder:
         
         kms_key = os.environ.get("QUANTUMD_KMS_KEY_VERSION")
         if kms_key:
-            sig_data = sign_payload_with_kms(receipt_hash, kms_key)
+            sig_data = sign_payload_with_kms(
+                receipt_hash,
+                kms_key,
+                evidence_root=self.project_dir / "evidence",
+            )
             self.receipt["integrity"] = {"canonical_payload_sha256": receipt_hash, **sig_data}
             if not sig_data.get("signed"):
                 self.receipt["status"] = f"{self.receipt['status']}_ATTESTATION_FAILED"
