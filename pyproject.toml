@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "quantumd"
-version = "0.1.0"
+version = "0.7.1a0"
 description = "Trust and execution layer for AI-generated quantum software."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -19,6 +19,7 @@ dependencies = [
     "google-cloud-kms>=2.0.0",
     "cryptography>=41.0.0",
     "crcmod>=1.7",
+    "google-crc32c>=1.5.0",
     "qiskit-ibm-runtime==0.48.0",
     "google-cloud-secret-manager==2.30.0",
     "qiskit-aer>=0.14.0"
