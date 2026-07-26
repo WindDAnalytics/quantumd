@@ -505,6 +505,11 @@ def init_project_command(
     click.echo("  quantumd run . --target aer-simulator --latest")
     click.echo("  quantumd verify-chain . --latest")
 
+# QUANTUMD_PHASE4B_GOVERNED_DEMO
+from quantumd.demo import demo_command as _demo_command
+
+cli.add_command(_demo_command)
+
 
 if __name__ == "__main__":
     cli()
