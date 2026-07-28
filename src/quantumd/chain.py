@@ -904,7 +904,7 @@ def _verify_ibm_chain(context: dict[str, Any]) -> list[str]:
 
     return [
         "All five cryptographic signatures",
-        "Single KMS key-version lineage",
+        "Single signing key-version lineage",
         "QPLAN logical, ISA, and target artifacts",
         "Exact QPLAN-to-QAPPROVAL binding",
         "Time-bounded approval and single-use consumption",
@@ -1567,7 +1567,7 @@ def _verify_local_chain(
 
     return [
         "QVERIFY and QEXEC cryptographic signatures",
-        "Single KMS key-version lineage",
+        "Single signing key-version lineage",
         "Executable verification decision",
         "Exact authorization-to-QVERIFY binding",
         "Current manifest and source identity",
