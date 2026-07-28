@@ -30,3 +30,4 @@ fix_*.py
 **/evidence/reports/
 **/evidence/executions/
 **/evidence/ibm-smoke/
+site/
