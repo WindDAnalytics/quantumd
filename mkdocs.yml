@@ -1,0 +1,67 @@
+site_name: QuantumD
+site_description: Verification, governance, and evidence for quantum execution.
+site_url: https://docs.quantumd.ai
+
+repo_name: WindDAnalytics/quantumd
+repo_url: https://github.com/WindDAnalytics/quantumd
+edit_uri: edit/main/docs/
+
+copyright: Copyright &copy; QuantumD
+
+theme:
+  name: material
+  language: en
+  palette:
+    scheme: slate
+    primary: black
+    accent: cyan
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - pymdownx.details
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+
+extra_css:
+  - stylesheets/extra.css
+
+nav:
+  - Home: index.md
+
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Local Quickstart: getting-started/quickstart.md
+
+  - Core Concepts:
+      - Trust Modes: concepts/trust-modes.md
+      - Trust Boundary: concepts/trust-boundary.md
+      - Evidence Graph: concepts/evidence-graph.md
+
+  - Guides:
+      - Local Simulation: guides/local-simulation.md
+      - Verify an Evidence Chain: guides/verifying-a-chain.md
+
+  - Providers:
+      - IBM Quantum: providers/ibm-quantum.md
+
+  - Reference:
+      - CLI Commands: reference/cli.md
+
+  - Roadmap: roadmap.md
