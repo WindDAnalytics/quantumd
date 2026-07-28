@@ -15,6 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
 
+    permissions:
+      contents: read
+      id-token: write
+
     steps:
       - name: Check out release commit
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
@@ -128,7 +132,7 @@ jobs:
           print("Release wheel inspection: PASS")
           PY
 
-      - name: Run governed demo from built wheel
+      - name: Install built wheel into isolated release environment
         run: |
           WHEEL="$(
             find "$GITHUB_WORKSPACE/dist" \
@@ -141,6 +145,7 @@ jobs:
 
           test -n "$WHEEL"
 
+          rm -rf /tmp/quantumd-release-wheel
           python -m venv /tmp/quantumd-release-wheel
 
           /tmp/quantumd-release-wheel/bin/python \
@@ -151,8 +156,115 @@ jobs:
 
           cd /tmp
 
+          /tmp/quantumd-release-wheel/bin/python - <<'PYTHON'
+          from importlib.metadata import version
+          from importlib.resources import files
+
+          import quantumd
+
+          schema = files("quantumd.schemas").joinpath(
+              "experiment-v0.1.schema.json"
+          )
+
+          assert schema.is_file()
+
+          print(f"Package: {quantumd.__file__}")
+          print(f"Version: {version('quantumd')}")
+          print(f"Schema:  {schema}")
+          print("Release-wheel installation: PASS")
+          PYTHON
+
+      - name: Validate protected release configuration
+        if: github.ref_type == 'tag'
+        env:
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+          GCP_RELEASE_SERVICE_ACCOUNT: ${{ vars.GCP_RELEASE_SERVICE_ACCOUNT }}
+          QUANTUMD_KMS_KEY_VERSION: ${{ vars.QUANTUMD_KMS_KEY_VERSION }}
+        run: |
+          test -n "$GCP_PROJECT_ID"
+          test -n "$GCP_WIF_PROVIDER"
+          test -n "$GCP_RELEASE_SERVICE_ACCOUNT"
+          test -n "$QUANTUMD_KMS_KEY_VERSION"
+
+          case "$GCP_WIF_PROVIDER" in
+            projects/*/locations/global/workloadIdentityPools/*/providers/*)
+              ;;
+            *)
+              echo "Invalid Workload Identity provider"
+              exit 1
+              ;;
+          esac
+
+          case "$QUANTUMD_KMS_KEY_VERSION" in
+            projects/*/locations/*/keyRings/*/cryptoKeys/*/cryptoKeyVersions/*)
+              ;;
+            *)
+              echo "Invalid QuantumD KMS key version"
+              exit 1
+              ;;
+          esac
+
+          echo "Protected release configuration: PASS"
+
+      - name: Authenticate to Google Cloud for release signing
+        if: github.ref_type == 'tag'
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_RELEASE_SERVICE_ACCOUNT }}
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          create_credentials_file: true
+          export_environment_variables: true
+
+      - name: Run KMS-attested governed release demonstration
+        if: github.ref_type == 'tag'
+        env:
+          QUANTUMD_KMS_KEY_VERSION: ${{ vars.QUANTUMD_KMS_KEY_VERSION }}
+        run: |
+          cd /tmp
+
           /tmp/quantumd-release-wheel/bin/quantumd \
             demo --shots 128
+
+      - name: Verify manual release build fails closed without KMS
+        if: github.ref_type != 'tag'
+        run: |
+          unset QUANTUMD_KMS_KEY_VERSION
+          unset GOOGLE_APPLICATION_CREDENTIALS
+          unset GOOGLE_GHA_CREDS_PATH
+
+          cd /tmp
+
+          set +e
+          DEMO_OUTPUT="$(
+            /tmp/quantumd-release-wheel/bin/quantumd \
+              demo --shots 128 2>&1
+          )"
+          DEMO_STATUS=$?
+          set -e
+
+          printf '%s\n' "$DEMO_OUTPUT"
+
+          test "$DEMO_STATUS" -ne 0
+
+          grep -F \
+            "Evidence record is not signed." \
+            <<< "$DEMO_OUTPUT"
+
+          grep -F \
+            "[STATUS] EXECUTION DENIED: AUTHORIZATION_FAILED" \
+            <<< "$DEMO_OUTPUT"
+
+          if grep -Fq \
+            "EXECUTION COMPLETED AND ATTESTED" \
+            <<< "$DEMO_OUTPUT"
+          then
+            echo "ERROR: Unsigned release unexpectedly executed."
+            exit 1
+          fi
+
+          echo "Manual release fail-closed check: PASS"
 
       - name: Upload verified release distributions
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
