@@ -156,6 +156,7 @@ def initialize_project(
             ".venv/\n"
             ".env\n"
             ".pytest_cache/\n\n"
+            ".quantumd/local-trust/\n\n"
             "evidence/*\n"
             "!evidence/.gitkeep\n"
         )

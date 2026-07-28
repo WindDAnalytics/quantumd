@@ -339,8 +339,35 @@ def run(project_dir: Path, evidence_run: str, latest: bool, target: str, shots: 
             click.echo(f"\nExecution receipt:\n  {receipt_path.relative_to(project_path)}")
             click.echo()
             
-            if receipt.receipt.get("integrity", {}).get("signed"):
-                click.secho("[STATUS] EXECUTION COMPLETED AND ATTESTED", fg="black", bg="green", bold=True)
+            integrity = receipt.receipt.get("integrity", {})
+            if integrity.get("signed"):
+                if (
+                    integrity.get("signature_status")
+                    == "LOCAL_DEVELOPMENT_SIGNED"
+                ):
+                    click.secho(
+                        "[STATUS] EXECUTION COMPLETED — "
+                        "LOCAL DEVELOPMENT ATTESTATION",
+                        fg="black",
+                        bg="yellow",
+                        bold=True,
+                    )
+                    click.echo(
+                        "  └─ Trust scope: "
+                        "LOCAL_SIMULATION_ONLY"
+                    )
+                    click.echo(
+                        "  └─ Hardware authorization: "
+                        "PROHIBITED"
+                    )
+                else:
+                    click.secho(
+                        "[STATUS] EXECUTION COMPLETED "
+                        "AND ATTESTED",
+                        fg="black",
+                        bg="green",
+                        bold=True,
+                    )
             elif allow_unsigned_receipt:
                 click.secho("[STATUS] EXECUTION COMPLETED (UNSIGNED RECEIPT ALLOWED)", fg="black", bg="yellow", bold=True)
             else:
