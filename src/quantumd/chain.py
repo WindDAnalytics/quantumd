@@ -106,7 +106,7 @@ def _load_public_key(path: Path) -> Any:
 
     if not isinstance(public_key, ec.EllipticCurvePublicKey):
         raise ChainVerificationError(
-            "Cached KMS key is not an EC public key."
+            "Cached signing key is not an EC public key."
         )
 
     return public_key
@@ -137,11 +137,54 @@ def _decode_signature(record: dict[str, Any], label: str) -> bytes:
     integrity = record.get("integrity", {})
 
     _require(f"{label} signed", integrity.get("signed"), True)
-    _require(
-        f"{label} signature status",
-        integrity.get("signature_status"),
-        "KMS_SIGNED",
-    )
+
+    provider = integrity.get("provider")
+    status = integrity.get("signature_status")
+
+    if (
+        provider == "gcp-cloud-kms"
+        or (
+            provider is None
+            and status == "KMS_SIGNED"
+        )
+    ):
+        _require(
+            f"{label} signature status",
+            status,
+            "KMS_SIGNED",
+        )
+    elif provider == "quantumd-local-development":
+        if label not in {"QVERIFY", "QEXEC", "LOCAL"}:
+            raise ChainVerificationError(
+                "Local-development signatures cannot authorize "
+                f"remote governance node {label}."
+            )
+        _require(
+            f"{label} signature status",
+            status,
+            "LOCAL_DEVELOPMENT_SIGNED",
+        )
+        _require(
+            f"{label} trust mode",
+            integrity.get("trust_mode"),
+            "LOCAL_DEVELOPMENT",
+        )
+        _require(
+            f"{label} trust scope",
+            integrity.get("trust_scope"),
+            "LOCAL_SIMULATION_ONLY",
+        )
+        _require(
+            f"{label} hardware authorization",
+            integrity.get("hardware_authorization"),
+            "PROHIBITED",
+        )
+    else:
+        raise ChainVerificationError(
+            f"{label} signature provider is unsupported: "
+            f"{provider!r}"
+        )
+
     _require(
         f"{label} algorithm",
         integrity.get("algorithm"),
@@ -861,7 +904,7 @@ def _verify_ibm_chain(context: dict[str, Any]) -> list[str]:
 
     return [
         "All five cryptographic signatures",
-        "Single KMS key-version lineage",
+        "Single signing key-version lineage",
         "QPLAN logical, ISA, and target artifacts",
         "Exact QPLAN-to-QAPPROVAL binding",
         "Time-bounded approval and single-use consumption",
@@ -1524,7 +1567,7 @@ def _verify_local_chain(
 
     return [
         "QVERIFY and QEXEC cryptographic signatures",
-        "Single KMS key-version lineage",
+        "Single signing key-version lineage",
         "Executable verification decision",
         "Exact authorization-to-QVERIFY binding",
         "Current manifest and source identity",

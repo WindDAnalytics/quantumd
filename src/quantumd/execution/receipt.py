@@ -7,6 +7,10 @@ from pathlib import Path
 from qiskit import qpy, QuantumCircuit
 from quantumd.evidence.builder import sha256_file
 from quantumd.evidence.signing import sign_payload_with_kms
+from quantumd.local_trust import (
+    exists as local_trust_exists,
+    sign_digest as sign_digest_locally,
+)
 
 class ExecutionReceiptBuilder:
     def __init__(self, project_dir: Path, verification_run_id: str, verification_payload_sha256: str):
@@ -89,6 +93,19 @@ class ExecutionReceiptBuilder:
             self.receipt["integrity"] = {"canonical_payload_sha256": receipt_hash, **sig_data}
             if not sig_data.get("signed"):
                 self.receipt["status"] = f"{self.receipt['status']}_ATTESTATION_FAILED"
+        elif local_trust_exists(self.project_dir):
+            sig_data = sign_digest_locally(
+                receipt_hash,
+                self.project_dir,
+            )
+            self.receipt["integrity"] = {
+                "canonical_payload_sha256": receipt_hash,
+                **sig_data,
+            }
+            if not sig_data.get("signed"):
+                self.receipt["status"] = (
+                    f"{self.receipt['status']}_ATTESTATION_FAILED"
+                )
         else:
             if not allow_unsigned:
                 self.receipt["status"] = f"{self.receipt['status']}_ATTESTATION_FAILED"

@@ -6,6 +6,10 @@ import os
 import uuid
 import os
 from quantumd.evidence.signing import sign_payload_with_kms
+from quantumd.local_trust import (
+    exists as local_trust_exists,
+    sign_digest as sign_digest_locally,
+)
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -128,6 +132,15 @@ class EvidenceBuilder:
             self.evidence["integrity"] = {
                 "canonical_payload_sha256": evidence_hash,
                 **sig_data
+            }
+        elif local_trust_exists(self.project_dir):
+            sig_data = sign_digest_locally(
+                evidence_hash,
+                self.project_dir,
+            )
+            self.evidence["integrity"] = {
+                "canonical_payload_sha256": evidence_hash,
+                **sig_data,
             }
         else:
             self.evidence["integrity"] = {
