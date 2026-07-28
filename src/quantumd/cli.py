@@ -222,9 +222,7 @@ def fix(project_dir: Path):
     else:
         click.echo("No physical structural repairs required or supported for current evidence.")
 
-@cli.command()
-def doctor():
-    click.echo("QuantumD Doctor: Checking environment health...")
+# Doctor is registered from quantumd.doctor below.
 
 @cli.command()
 @click.argument("project_dir", type=click.Path(exists=True, file_okay=False, path_type=Path))
@@ -536,6 +534,21 @@ def init_project_command(
 from quantumd.demo import demo_command as _demo_command
 
 cli.add_command(_demo_command)
+
+
+# QUANTUMD_PHASE5A_LOCAL_QUICKSTART
+from quantumd.doctor import (
+    doctor_command as _doctor_command,
+)
+from quantumd.quickstart import (
+    quickstart_command as _quickstart_command,
+)
+
+if "doctor" not in cli.commands:
+    cli.add_command(_doctor_command)
+
+if "quickstart" not in cli.commands:
+    cli.add_command(_quickstart_command)
 
 
 if __name__ == "__main__":
