@@ -46,3 +46,9 @@ Homepage = "https://quantumd.ai"
 Documentation = "https://github.com/WindDAnalytics/quantumd#readme"
 Repository = "https://github.com/WindDAnalytics/quantumd"
 Issues = "https://github.com/WindDAnalytics/quantumd/issues"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+"quantumd.schemas" = ["*.json"]
