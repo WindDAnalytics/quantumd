@@ -26,3 +26,7 @@ fix_*.py
 .DS_Store
 .vscode/
 .idea/
+.repairs/
+**/evidence/reports/
+**/evidence/executions/
+**/evidence/ibm-smoke/

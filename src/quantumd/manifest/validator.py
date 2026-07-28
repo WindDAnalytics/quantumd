@@ -17,7 +17,7 @@ def load_and_validate_manifest(project_dir: Path) -> dict:
         manifest_hash = hashlib.sha256(content.encode('utf-8')).hexdigest()
 
     # Load JSON Schema
-    schema_path = Path(__file__).resolve().parent.parent.parent.parent / "schemas" / "experiment-v0.1.schema.json"
+    schema_path = Path(__file__).resolve().parent.parent / "schemas" / "experiment-v0.1.schema.json"
     if not schema_path.exists():
         raise FileNotFoundError(f"Schema definition missing at {schema_path}")
 

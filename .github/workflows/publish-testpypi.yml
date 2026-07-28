@@ -1,0 +1,304 @@
+name: TestPyPI Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*-alpha"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and independently verify release
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Check out release commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install test and build tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build twine
+          python -m pip install -e ".[dev]"
+
+      - name: Enforce tag and package-version contract
+        run: |
+          python - <<'PY'
+          import os
+          import re
+          import tomllib
+          from pathlib import Path
+
+          project = tomllib.loads(
+              Path("pyproject.toml").read_text()
+          )["project"]
+
+          version = project["version"]
+          ref_type = os.environ.get("GITHUB_REF_TYPE")
+          ref_name = os.environ.get("GITHUB_REF_NAME")
+
+          print(f"Package version: {version}")
+          print(f"GitHub ref:      {ref_type}:{ref_name}")
+
+          if ref_type == "tag":
+              match = re.fullmatch(
+                  r"v(\d+)\.(\d+)\.(\d+)-alpha",
+                  ref_name,
+              )
+              assert match, (
+                  f"Unsupported release tag: {ref_name}"
+              )
+
+              major, minor, patch = match.groups()
+              expected = (
+                  f"{major}.{minor}.{patch}a0"
+              )
+
+              assert version == expected, (
+                  f"Tag {ref_name} requires package "
+                  f"version {expected}, found {version}"
+              )
+
+              print("Tag/version contract: PASS")
+          else:
+              print(
+                  "Manual build validation: "
+                  "tag contract not applicable"
+              )
+          PY
+
+      - name: Compile and test source
+        run: |
+          python -m compileall -q src
+          python -m pytest -q
+
+      - name: Build and validate distributions
+        run: |
+          rm -rf build dist src/*.egg-info
+          python -m build
+          python -m twine check dist/*
+
+      - name: Inspect release wheel
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+
+          wheels = list(Path("dist").glob("quantumd-*.whl"))
+          assert len(wheels) == 1, wheels
+
+          wheel = wheels[0]
+          schema = (
+              "quantumd/schemas/"
+              "experiment-v0.1.schema.json"
+          )
+
+          with ZipFile(wheel) as archive:
+              names = archive.namelist()
+              assert schema in names
+
+              metadata_name = next(
+                  name
+                  for name in names
+                  if name.endswith(".dist-info/METADATA")
+              )
+
+              metadata = archive.read(
+                  metadata_name
+              ).decode("utf-8")
+
+          assert "Name: quantumd" in metadata
+          assert (
+              "License-Expression: Apache-2.0"
+              in metadata
+          )
+
+          print(f"Wheel: {wheel}")
+          print("Release wheel inspection: PASS")
+          PY
+
+      - name: Install built wheel into isolated release environment
+        run: |
+          WHEEL="$(
+            find "$GITHUB_WORKSPACE/dist" \
+              -maxdepth 1 \
+              -type f \
+              -name 'quantumd-*.whl' \
+              -print \
+              -quit
+          )"
+
+          test -n "$WHEEL"
+
+          rm -rf /tmp/quantumd-release-wheel
+          python -m venv /tmp/quantumd-release-wheel
+
+          /tmp/quantumd-release-wheel/bin/python \
+            -m pip install --upgrade pip
+
+          /tmp/quantumd-release-wheel/bin/python \
+            -m pip install "$WHEEL"
+
+          cd /tmp
+
+          /tmp/quantumd-release-wheel/bin/python - <<'PYTHON'
+          from importlib.metadata import version
+          from importlib.resources import files
+
+          import quantumd
+
+          schema = files("quantumd.schemas").joinpath(
+              "experiment-v0.1.schema.json"
+          )
+
+          assert schema.is_file()
+
+          print(f"Package: {quantumd.__file__}")
+          print(f"Version: {version('quantumd')}")
+          print(f"Schema:  {schema}")
+          print("Release-wheel installation: PASS")
+          PYTHON
+
+      - name: Validate protected release configuration
+        if: github.ref_type == 'tag'
+        env:
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+          GCP_RELEASE_SERVICE_ACCOUNT: ${{ vars.GCP_RELEASE_SERVICE_ACCOUNT }}
+          QUANTUMD_KMS_KEY_VERSION: ${{ vars.QUANTUMD_KMS_KEY_VERSION }}
+        run: |
+          test -n "$GCP_PROJECT_ID"
+          test -n "$GCP_WIF_PROVIDER"
+          test -n "$GCP_RELEASE_SERVICE_ACCOUNT"
+          test -n "$QUANTUMD_KMS_KEY_VERSION"
+
+          case "$GCP_WIF_PROVIDER" in
+            projects/*/locations/global/workloadIdentityPools/*/providers/*)
+              ;;
+            *)
+              echo "Invalid Workload Identity provider"
+              exit 1
+              ;;
+          esac
+
+          case "$QUANTUMD_KMS_KEY_VERSION" in
+            projects/*/locations/*/keyRings/*/cryptoKeys/*/cryptoKeyVersions/*)
+              ;;
+            *)
+              echo "Invalid QuantumD KMS key version"
+              exit 1
+              ;;
+          esac
+
+          echo "Protected release configuration: PASS"
+
+      - name: Authenticate to Google Cloud for release signing
+        if: github.ref_type == 'tag'
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_RELEASE_SERVICE_ACCOUNT }}
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          create_credentials_file: true
+          export_environment_variables: true
+
+      - name: Run KMS-attested governed release demonstration
+        if: github.ref_type == 'tag'
+        env:
+          QUANTUMD_KMS_KEY_VERSION: ${{ vars.QUANTUMD_KMS_KEY_VERSION }}
+        run: |
+          cd /tmp
+
+          /tmp/quantumd-release-wheel/bin/quantumd \
+            demo --shots 128
+
+      - name: Verify manual release build fails closed without KMS
+        if: github.ref_type != 'tag'
+        run: |
+          unset QUANTUMD_KMS_KEY_VERSION
+          unset GOOGLE_APPLICATION_CREDENTIALS
+          unset GOOGLE_GHA_CREDS_PATH
+
+          cd /tmp
+
+          set +e
+          DEMO_OUTPUT="$(
+            /tmp/quantumd-release-wheel/bin/quantumd \
+              demo --shots 128 2>&1
+          )"
+          DEMO_STATUS=$?
+          set -e
+
+          printf '%s\n' "$DEMO_OUTPUT"
+
+          test "$DEMO_STATUS" -ne 0
+
+          grep -F \
+            "Evidence record is not signed." \
+            <<< "$DEMO_OUTPUT"
+
+          grep -F \
+            "[STATUS] EXECUTION DENIED: AUTHORIZATION_FAILED" \
+            <<< "$DEMO_OUTPUT"
+
+          if grep -Fq \
+            "EXECUTION COMPLETED AND ATTESTED" \
+            <<< "$DEMO_OUTPUT"
+          then
+            echo "ERROR: Unsigned release unexpectedly executed."
+            exit 1
+          fi
+
+          echo "Manual release fail-closed check: PASS"
+
+      - name: Upload verified release distributions
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: release-distributions
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+  publish-testpypi:
+    name: Publish through TestPyPI OIDC
+    if: >-
+      github.event_name == 'push' &&
+      github.ref_type == 'tag'
+    needs:
+      - build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/quantumd
+
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Retrieve verified distributions
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        with:
+          name: release-distributions
+          path: dist/
+
+      - name: Publish distributions to TestPyPI
+        uses: pypa/gh-action-pypi-publish@ba38be9e461d3875417946c167d0b5f3d385a247
+        with:
+          repository-url: https://test.pypi.org/legacy/
