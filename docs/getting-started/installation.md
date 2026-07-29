@@ -53,9 +53,9 @@ quantumd quickstart ~/quantumd-first-run
 The intended public-alpha experience is:
 
 ~~~bash
-pip install quantumd
+pip install -i https://test.pypi.org/simple/ quantumd
 quantumd quickstart
 ~~~
 
 This documentation does not claim that production PyPI publishing has
-occurred until the release acceptance process is complete.
+occurred until the release acceptance process is complete. The link above is for the pre-release.
