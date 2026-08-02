@@ -333,4 +333,4 @@ The current public alpha is `v0.7.4-alpha`, published as Python package version
 - Website: [quantumd.ai](https://quantumd.ai)
 - License: [Apache License 2.0](LICENSE)
 
-QuantumD was founded and is maintained by Damarcus Thomas.
+QuantumD was founded and is maintained by Damarcus Thomas, founder@quantumd.ai.
