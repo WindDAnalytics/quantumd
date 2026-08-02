@@ -12,11 +12,12 @@ description: Verify every workload. Control every execution. Prove every result.
 QuantumD verifies quantum workloads, enforces execution policy, signs
 evidence, and independently verifies what actually ran.
 
-[Start locally](getting-started/quickstart.md){ .md-button .md-button--primary }
+[Install the alpha](getting-started/installation.md){ .md-button .md-button--primary }
+[Run the quickstart](getting-started/quickstart.md){ .md-button }
 [Explore the trust model](concepts/trust-modes.md){ .md-button }
 
 <div class="quantumd-terminal">
-$ quantumd quickstart<br>
+$ quantumd quickstart my-first-quantumd-project<br>
 [1/6] Project initialization................ PASS<br>
 [2/6] Simulator-only local identity......... PASS<br>
 [3/6] Verification and policy gates......... PASS<br>
@@ -25,7 +26,7 @@ $ quantumd quickstart<br>
 [6/6] Offline chain verification............ PASS
 </div>
 
-**Runs locally · No GCP required · No quantum hardware contacted**
+**Runs locally · No GCP required · No IBM account required · Hardware prohibited**
 
 </div>
 
@@ -45,40 +46,51 @@ software and quantum execution.
 The system binds authorization to the exact project, source, manifest,
 backend, shot count, circuit, result artifact, and execution receipt.
 
-## Start locally
+## Install the public alpha
 
-The current public repository supports a source installation and a
-simulator-only governed quickstart:
+Create an isolated environment, download the exact QuantumD wheel from
+TestPyPI, verify its checksum, and install the local artifact:
 
 ~~~bash
-git clone https://github.com/WindDAnalytics/quantumd.git
-cd quantumd
-
-python -m venv .venv
+python3.12 -m venv .venv
 source .venv/bin/activate
-python -m pip install -e .
+python -m pip install --upgrade pip
 
-quantumd quickstart
+python -m pip download \
+  --no-deps \
+  --only-binary=:all: \
+  --index-url https://test.pypi.org/simple/ \
+  quantumd==0.7.4a0
+
+echo \
+  "761a865a5aaf655f570fa3ae6f1d0f9b1b09cb89ee5519ac1843b738d251b7d2  quantumd-0.7.4a0-py3-none-any.whl" \
+  | sha256sum --check
+
+python -m pip install \
+  ./quantumd-0.7.4a0-py3-none-any.whl
 ~~~
 
-The local workflow creates a project-local signing identity and uses the
-Aer simulator. It does not require a GCP account.
+Run the local governed workflow:
+
+~~~bash
+quantumd quickstart my-first-quantumd-project
+~~~
 
 ## Evidence, not assertions
 
-Local development produces a compact evidence graph:
+Local development produces a compact Evidence Graph:
 
 ~~~text
-PROJECT ──> QVERIFY ──> QEXEC
+PROJECT -> QVERIFY -> QEXEC
 ~~~
 
 Organization-governed hardware execution extends that chain:
 
 ~~~text
 PROJECT
-   │
-   ▼
-QVERIFY ──> QPLAN ──> QAPPROVAL ──> QSUB ──> QEXEC
+   |
+   v
+QVERIFY -> QPLAN -> QAPPROVAL -> QSUB -> IBM JOB -> QEXEC
 ~~~
 
 Each node is bound to its predecessor and can be checked independently.
@@ -86,25 +98,21 @@ Each node is bound to its predecessor and can be checked independently.
 ## Trust modes
 
 | Mode | Status | Hardware |
-|---|---|---|
+| --- | --- | --- |
 | `LOCAL_DEVELOPMENT` | Available | Prohibited |
-| `KMS_GOVERNED` | Available for the existing managed path | Policy controlled |
-| `SELF_MANAGED_HARDWARE` | Phase 5B | Planned |
+| `KMS_GOVERNED` | Available for the organization-managed path | Policy controlled |
+| `SELF_MANAGED_HARDWARE` | Planned | Not yet available |
 | `UNCONFIGURED` | Denied | Prohibited |
 
-!!! info "Current versus planned"
+!!! info "Local evaluation is intentionally restricted"
 
-    QuantumD runs locally today without GCP. GCP-free IBM hardware
-    execution, encrypted local IBM credentials, and imported signing
-    identities are Phase 5B deliverables.
+    QuantumD runs locally without GCP or IBM credentials. Local-development
+    trust is simulator-only and cannot be promoted into hardware authority.
 
-## The trust boundary
+## Evaluate the alpha
 
-<div class="quantumd-boundary" markdown>
+QuantumD is recruiting five early technical evaluators. Complete the
+installation and quickstart without a live walkthrough, then report where the
+experience became confusing, unconvincing, or unnecessarily difficult.
 
-Generated code remains outside the trusted boundary until QuantumD
-verifies the project, applies policy, and creates signed evidence.
-
-A local-development identity cannot be promoted into hardware authority.
-
-</div>
+[Read the evaluation guide](alpha-evaluation.md){ .md-button .md-button--primary }

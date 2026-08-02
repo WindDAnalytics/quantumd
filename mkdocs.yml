@@ -64,4 +64,9 @@ nav:
   - Reference:
       - CLI Commands: reference/cli.md
 
+  - Alpha Evaluation: alpha-evaluation.md
+
+  - Releases:
+      - v0.7.4 Alpha: releases/v0.7.4-alpha.md
+
   - Roadmap: roadmap.md

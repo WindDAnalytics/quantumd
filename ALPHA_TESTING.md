@@ -112,3 +112,9 @@ Do not include:
 - confidential workloads
 - sensitive evidence
 - regulated or classified information
+
+## Submit feedback
+
+After completing the evaluation, open the repository's **Alpha evaluation
+feedback** issue form. Do not include credentials, private keys, cloud account
+identifiers, confidential workloads, or sensitive evidence.
