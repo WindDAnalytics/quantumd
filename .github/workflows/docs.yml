@@ -47,7 +47,7 @@ jobs:
         run: python -m mkdocs build --strict
 
       - name: Upload rendered site
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: quantumd-documentation-site
           path: site/
