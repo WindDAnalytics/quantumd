@@ -176,7 +176,46 @@ SANITIZED_ENV=(
     "NO_PROXY=localhost,127.0.0.1"
 )
 
-section "5. Running poisoned-environment quickstart"
+section "5. Verifying unsigned governed execution fails closed"
+
+set +e
+UNSIGNED_OUTPUT="$(
+    "${SANITIZED_ENV[@]}" \
+        "$RUNTIME_VENV/bin/quantumd" \
+            demo \
+            --shots 32 \
+        2>&1
+)"
+UNSIGNED_STATUS="$?"
+set -e
+
+printf '%s\n' "$UNSIGNED_OUTPUT"
+
+[ "$UNSIGNED_STATUS" -ne 0 ] ||
+    fail "Unsigned governed demonstration unexpectedly succeeded."
+
+grep -F \
+    "Evidence record is not signed." \
+    <<< "$UNSIGNED_OUTPUT" \
+    >/dev/null ||
+    fail "Unsigned evidence denial reason was not reported."
+
+grep -F \
+    "[STATUS] EXECUTION DENIED: AUTHORIZATION_FAILED" \
+    <<< "$UNSIGNED_OUTPUT" \
+    >/dev/null ||
+    fail "Unsigned execution did not fail at authorization."
+
+if grep -Fq \
+    "EXECUTION COMPLETED AND ATTESTED" \
+    <<< "$UNSIGNED_OUTPUT"
+then
+    fail "Unsigned workload reached an attested completion state."
+fi
+
+echo "PASS: Unsigned governed execution failed closed."
+
+section "6. Running poisoned-environment quickstart"
 
 "${SANITIZED_ENV[@]}" \
     QUANTUMD_KMS_KEY_VERSION="projects/forbidden/locations/forbidden/keyRings/forbidden/cryptoKeys/forbidden/cryptoKeyVersions/1" \
@@ -227,7 +266,7 @@ grep -F \
     >/dev/null ||
     fail "Quickstart reported a hardware action."
 
-section "6. Verifying sanitized doctor state"
+section "7. Verifying sanitized doctor state"
 
 "${SANITIZED_ENV[@]}" \
     "$RUNTIME_VENV/bin/quantumd" \
@@ -253,7 +292,7 @@ grep -F \
     >/dev/null ||
     fail "Doctor did not report a ready environment."
 
-section "7. Inspecting evidence graph"
+section "8. Inspecting evidence graph"
 
 "${SANITIZED_ENV[@]}" \
     "$RUNTIME_VENV/bin/quantumd" \
@@ -280,7 +319,7 @@ grep -F \
     >/dev/null ||
     fail "QEXEC node is missing."
 
-section "8. Independently verifying evidence"
+section "9. Independently verifying evidence"
 
 "${SANITIZED_ENV[@]}" \
     "$RUNTIME_VENV/bin/quantumd" \
@@ -313,7 +352,7 @@ grep -F \
     >/dev/null ||
     fail "Verification reported a hardware action."
 
-section "9. Inspecting generated evidence contracts"
+section "10. Inspecting generated evidence contracts"
 
 "$RUNTIME_VENV/bin/python" - <<PY
 from __future__ import annotations
@@ -461,7 +500,7 @@ print(f"QEXEC:   {receipt_path}")
 print("PASS: Generated evidence contracts verified.")
 PY
 
-section "10. Confirming repository stability"
+section "11. Confirming repository stability"
 
 STATUS_AFTER="$(
     git status \
@@ -485,6 +524,7 @@ echo "======================================================"
 echo "PUBLIC ALPHA WHEEL ACCEPTANCE PASSED"
 echo "======================================================"
 echo "Wheel installation:     PASS"
+echo "Unsigned fail-closed:    PASS"
 echo "Local quickstart:       PASS"
 echo "Cloud isolation:        PASS"
 echo "Hardware prohibition:   PASS"
