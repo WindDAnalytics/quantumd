@@ -1,0 +1,68 @@
+name: Alpha evaluation feedback
+description: Share structured feedback from the public-alpha evaluation
+title: "alpha feedback: "
+labels:
+  - alpha-feedback
+body:
+  - type: input
+    id: evaluator
+    attributes:
+      label: Evaluator perspective
+      placeholder: Quantum developer, security engineer, researcher, or other
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: Windows WSL, Python 3.12
+    validations:
+      required: true
+  - type: input
+    id: install_time
+    attributes:
+      label: Installation time
+      placeholder: 8 minutes
+    validations:
+      required: true
+  - type: input
+    id: verified_time
+    attributes:
+      label: Time to first verified chain
+      placeholder: 12 minutes
+    validations:
+      required: true
+  - type: textarea
+    id: confusion
+    attributes:
+      label: Where did you become confused?
+    validations:
+      required: true
+  - type: textarea
+    id: skepticism
+    attributes:
+      label: Which claim felt least credible?
+    validations:
+      required: true
+  - type: textarea
+    id: understanding
+    attributes:
+      label: Explain the Evidence Graph and trust boundary
+    validations:
+      required: true
+  - type: textarea
+    id: workflow
+    attributes:
+      label: What real workflow would you test next?
+    validations:
+      required: true
+  - type: dropdown
+    id: continue
+    attributes:
+      label: Would you continue evaluating QuantumD?
+      options:
+        - "Yes"
+        - "Maybe"
+        - "No"
+    validations:
+      required: true
