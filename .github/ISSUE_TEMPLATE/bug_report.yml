@@ -1,0 +1,51 @@
+name: Bug report
+description: Report a reproducible QuantumD defect
+title: "bug: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include credentials, private keys, confidential evidence, or vulnerability details. Security reports must follow SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: QuantumD version
+      placeholder: 0.7.4a0
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Operating system and Python version
+      placeholder: Ubuntu 24.04, Python 3.12
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command or workflow
+      description: Provide the exact sanitized command
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Include sanitized steps and logs
+    validations:
+      required: true
