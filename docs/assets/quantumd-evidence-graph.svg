@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1200"
+     height="360"
+     viewBox="0 0 1200 360"
+     role="img"
+     aria-labelledby="title description">
+  <title id="title">QuantumD Evidence Graph</title>
+  <desc id="description">
+    A local workflow connects a project to QVERIFY and QEXEC. A managed
+    hardware workflow adds QPLAN, QAPPROVAL, QSUB, an IBM job, and QEXEC.
+  </desc>
+  <defs>
+    <linearGradient id="background" x1="0" x2="1">
+      <stop offset="0%" stop-color="#08131f"/>
+      <stop offset="100%" stop-color="#0e2631"/>
+    </linearGradient>
+    <marker id="arrow" markerWidth="10" markerHeight="10"
+            refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#65d8ff"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="360" rx="24" fill="url(#background)"/>
+
+  <g font-family="Arial, Helvetica, sans-serif">
+    <text x="54" y="54" font-size="28" font-weight="700" fill="#ffffff">
+      Evidence Graph
+    </text>
+    <text x="54" y="88" font-size="17" fill="#bdd0d8">
+      Every node binds to the records before and after it.
+    </text>
+
+    <text x="54" y="148" font-size="18" font-weight="700" fill="#84ffd7">
+      Local simulation
+    </text>
+
+    <g fill="#102c3a" stroke="#65d8ff" stroke-width="2">
+      <rect x="250" y="116" width="150" height="58" rx="14"/>
+      <rect x="500" y="116" width="150" height="58" rx="14"/>
+      <rect x="750" y="116" width="150" height="58" rx="14"/>
+    </g>
+
+    <g fill="#ffffff" font-size="17" font-weight="700" text-anchor="middle">
+      <text x="325" y="151">PROJECT</text>
+      <text x="575" y="151">QVERIFY</text>
+      <text x="825" y="151">QEXEC</text>
+    </g>
+
+    <g stroke="#65d8ff" stroke-width="3" marker-end="url(#arrow)">
+      <line x1="404" y1="145" x2="492" y2="145"/>
+      <line x1="654" y1="145" x2="742" y2="145"/>
+    </g>
+
+    <text x="54" y="254" font-size="18" font-weight="700" fill="#84ffd7">
+      Organization-governed hardware
+    </text>
+
+    <g fill="#102c3a" stroke="#65d8ff" stroke-width="2">
+      <rect x="120" y="270" width="128" height="54" rx="13"/>
+      <rect x="284" y="270" width="128" height="54" rx="13"/>
+      <rect x="448" y="270" width="145" height="54" rx="13"/>
+      <rect x="629" y="270" width="128" height="54" rx="13"/>
+      <rect x="793" y="270" width="128" height="54" rx="13"/>
+      <rect x="957" y="270" width="128" height="54" rx="13"/>
+    </g>
+
+    <g fill="#ffffff" font-size="15" font-weight="700" text-anchor="middle">
+      <text x="184" y="303">QVERIFY</text>
+      <text x="348" y="303">QPLAN</text>
+      <text x="520" y="303">QAPPROVAL</text>
+      <text x="693" y="303">QSUB</text>
+      <text x="857" y="303">IBM JOB</text>
+      <text x="1021" y="303">QEXEC</text>
+    </g>
+
+    <g stroke="#65d8ff" stroke-width="3" marker-end="url(#arrow)">
+      <line x1="252" y1="297" x2="276" y2="297"/>
+      <line x1="416" y1="297" x2="440" y2="297"/>
+      <line x1="597" y1="297" x2="621" y2="297"/>
+      <line x1="761" y1="297" x2="785" y2="297"/>
+      <line x1="925" y1="297" x2="949" y2="297"/>
+    </g>
+  </g>
+</svg>
