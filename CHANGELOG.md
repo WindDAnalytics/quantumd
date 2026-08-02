@@ -1,0 +1,17 @@
+# Changelog
+
+## 0.7.4a0 - 2026-08-02
+
+### Public-alpha acceptance hardening
+
+- Added a reusable wheel-installed public-alpha acceptance gate.
+- Builds QuantumD from tracked source and installs the wheel into an isolated runtime.
+- Confirms the package resolves from `site-packages` rather than an editable checkout.
+- Preserves fail-closed denial when governed execution lacks KMS-signed evidence.
+- Runs the local quickstart under isolated and deliberately poisoned cloud credentials.
+- Requires simulator-only local trust and prohibits hardware authorization.
+- Validates the generated QVERIFY and QEXEC evidence contracts.
+- Independently verifies all cryptographic, workload, circuit, result, shot, and timing bindings.
+- Confirms IBM and KMS are not contacted during offline local verification.
+- Requires local private-key permissions and generated `.gitignore` protection.
+- Requires the acceptance process to leave the repository unchanged.

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "quantumd"
-version = "0.7.3a0"
+version = "0.7.4a0"
 description = "Governed verification, policy enforcement, and evidence-bound execution for quantum software."
 readme = "README.md"
 requires-python = ">=3.10"
