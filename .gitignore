@@ -31,3 +31,30 @@ fix_*.py
 **/evidence/executions/
 **/evidence/ibm-smoke/
 site/
+
+# QuantumD private local state and generated evidence
+#
+# Keep the sanitized example fixture at
+# examples/quantum_kernel/evidence/evidence.json tracked. The patterns below
+# exclude generated runtime subdirectories without hiding source code under
+# src/quantumd/evidence/ or the intentional example fixture.
+
+# Local environment and credential files
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+
+# Project-local signing identity and trust state
+**/.quantumd/
+
+# Generated evidence graph artifacts
+**/evidence/runs/
+**/evidence/executions/
+**/evidence/keys/
+**/evidence/plans/
+**/evidence/approvals/
+**/evidence/submissions/
+**/evidence/results/
+**/evidence/authorizations/
