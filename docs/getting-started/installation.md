@@ -1,61 +1,121 @@
 # Installation
 
-QuantumD can run in Linux, WSL, Cloud Shell, or another compatible Python
-environment.
+QuantumD runs on Linux, Windows Subsystem for Linux, Cloud Shell, and other
+compatible Python environments.
 
-## Install from source
+The public alpha requires Python 3.10 or newer. Python 3.12 is the reference
+environment used by the release and acceptance workflows.
 
-The public repository is the authoritative installation path before the
-production PyPI alpha is released.
+## Install the published alpha
+
+Create an isolated environment:
 
 ~~~bash
-git clone https://github.com/WindDAnalytics/quantumd.git
-cd quantumd
-
-python -m venv .venv
+python3.12 -m venv .venv
 source .venv/bin/activate
-
 python -m pip install --upgrade pip
-python -m pip install -e .
 ~~~
+
+Download only the exact QuantumD wheel from TestPyPI:
+
+~~~bash
+python -m pip download \
+  --no-deps \
+  --only-binary=:all: \
+  --index-url https://test.pypi.org/simple/ \
+  quantumd==0.7.4a0
+~~~
+
+Verify the published wheel:
+
+~~~bash
+echo \
+  "761a865a5aaf655f570fa3ae6f1d0f9b1b09cb89ee5519ac1843b738d251b7d2  quantumd-0.7.4a0-py3-none-any.whl" \
+  | sha256sum --check
+~~~
+
+Install the downloaded wheel:
+
+~~~bash
+python -m pip install \
+  ./quantumd-0.7.4a0-py3-none-any.whl
+~~~
+
+Because the wheel is installed from a local file, its dependencies resolve
+from the default Python Package Index rather than TestPyPI.
+
+!!! warning "Do not use TestPyPI as the only dependency index"
+
+    Avoid `using TestPyPI as the sole package index`. TestPyPI is
+    a testing service and may contain unrelated or incomplete dependency
+    packages. Download the exact QuantumD artifact first, then install the
+    local wheel.
 
 Confirm the installation:
 
 ~~~bash
 quantumd --help
-quantumd doctor .
 ~~~
 
-## WSL
+## Run the first governed workflow
 
-No Google Cloud account is required for local simulation.
+~~~bash
+quantumd quickstart my-first-quantumd-project
+~~~
+
+Then inspect and independently verify it:
+
+~~~bash
+quantumd doctor my-first-quantumd-project
+
+quantumd verify-chain \
+  my-first-quantumd-project \
+  --latest
+~~~
+
+No Google Cloud account or IBM Quantum account is required for the local
+simulator path.
+
+## Windows Subsystem for Linux
 
 From a WSL terminal:
 
 ~~~bash
 cd ~
-git clone https://github.com/WindDAnalytics/quantumd.git
-cd quantumd
 
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -e .
-~~~
+python3.12 -m venv quantumd-alpha
+source quantumd-alpha/bin/activate
+python -m pip install --upgrade pip
 
-You can then run:
+python -m pip download \
+  --no-deps \
+  --only-binary=:all: \
+  --index-url https://test.pypi.org/simple/ \
+  quantumd==0.7.4a0
 
-~~~bash
+python -m pip install \
+  ./quantumd-0.7.4a0-py3-none-any.whl
+
 quantumd quickstart ~/quantumd-first-run
 ~~~
 
-## Public PyPI target
+## Install from source for development
 
-The intended public-alpha experience is:
+Clone the repository only when contributing or evaluating unreleased changes:
 
 ~~~bash
-pip install -i https://test.pypi.org/simple/ quantumd
-quantumd quickstart
+git clone https://github.com/WindDAnalytics/quantumd.git
+cd quantumd
+
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e ".[dev]"
 ~~~
 
-This documentation does not claim that production PyPI publishing has
-occurred until the release acceptance process is complete. The link above is for the pre-release.
+Run the development acceptance checks:
+
+~~~bash
+python -m pytest -q
+bash scripts/public_alpha_acceptance.sh
+~~~

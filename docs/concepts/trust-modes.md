@@ -30,7 +30,7 @@ When KMS is configured, it takes precedence over local-development trust.
 
 ## `SELF_MANAGED_HARDWARE`
 
-Planned for Phase 5B.
+Planned.
 
 This mode will allow a developer to use an encrypted local signing
 identity and their own IBM Quantum account without requiring GCP.
