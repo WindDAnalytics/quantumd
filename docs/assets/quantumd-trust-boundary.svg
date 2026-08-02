@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1200"
+     height="350"
+     viewBox="0 0 1200 350"
+     role="img"
+     aria-labelledby="title description">
+  <title id="title">QuantumD trust boundary</title>
+  <desc id="description">
+    External code, notebooks, and configuration remain untrusted until
+    QuantumD verifies the project, applies policy, binds authorization,
+    records execution, and produces independently verifiable evidence.
+  </desc>
+  <defs>
+    <linearGradient id="background" x1="0" x2="1">
+      <stop offset="0%" stop-color="#08131f"/>
+      <stop offset="100%" stop-color="#102a35"/>
+    </linearGradient>
+    <marker id="arrow" markerWidth="10" markerHeight="10"
+            refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#65d8ff"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="350" rx="24" fill="url(#background)"/>
+
+  <g font-family="Arial, Helvetica, sans-serif">
+    <text x="54" y="52" font-size="28" font-weight="700" fill="#ffffff">
+      Trust boundary
+    </text>
+
+    <rect x="52" y="88" width="280" height="210" rx="20"
+          fill="#251b24" stroke="#ff9cb4" stroke-width="2"/>
+    <text x="192" y="124" text-anchor="middle" font-size="19"
+          font-weight="700" fill="#ffb8c8">UNTRUSTED INPUTS</text>
+    <text x="82" y="170" font-size="17" fill="#f0d9df">AI-generated code</text>
+    <text x="82" y="208" font-size="17" fill="#f0d9df">Notebook changes</text>
+    <text x="82" y="246" font-size="17" fill="#f0d9df">User configuration</text>
+
+    <rect x="440" y="78" width="320" height="230" rx="22"
+          fill="#102f3d" stroke="#65d8ff" stroke-width="3"/>
+    <text x="600" y="118" text-anchor="middle" font-size="22"
+          font-weight="700" fill="#ffffff">QUANTUMD</text>
+    <text x="478" y="162" font-size="17" fill="#d6e9ef">1. Verify project identity</text>
+    <text x="478" y="198" font-size="17" fill="#d6e9ef">2. Evaluate policy</text>
+    <text x="478" y="234" font-size="17" fill="#d6e9ef">3. Bind authorization</text>
+    <text x="478" y="270" font-size="17" fill="#d6e9ef">4. Verify execution evidence</text>
+
+    <rect x="868" y="88" width="280" height="210" rx="20"
+          fill="#15332d" stroke="#84ffd7" stroke-width="2"/>
+    <text x="1008" y="124" text-anchor="middle" font-size="19"
+          font-weight="700" fill="#a9ffe5">VERIFIABLE OUTPUTS</text>
+    <text x="898" y="170" font-size="17" fill="#d8f6ed">Signed evidence</text>
+    <text x="898" y="208" font-size="17" fill="#d8f6ed">Bound execution receipt</text>
+    <text x="898" y="246" font-size="17" fill="#d8f6ed">Independent verification</text>
+
+    <line x1="342" y1="193" x2="430" y2="193"
+          stroke="#65d8ff" stroke-width="4" marker-end="url(#arrow)"/>
+    <line x1="770" y1="193" x2="858" y2="193"
+          stroke="#84ffd7" stroke-width="4" marker-end="url(#arrow)"/>
+
+    <text x="386" y="180" text-anchor="middle" font-size="13"
+          fill="#b7d4df">evaluate</text>
+    <text x="814" y="180" text-anchor="middle" font-size="13"
+          fill="#c9f5e8">prove</text>
+  </g>
+</svg>
