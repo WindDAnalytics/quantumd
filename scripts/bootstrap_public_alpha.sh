@@ -42,6 +42,15 @@ section() {
     echo "------------------------------------------------------"
 }
 
+run_local_only() {
+    env \
+        -u QUANTUMD_KMS_KEY_VERSION \
+        -u GOOGLE_APPLICATION_CREDENTIALS \
+        -u GOOGLE_GHA_CREDS_PATH \
+        -u CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE \
+        "$@"
+}
+
 while [ "$#" -gt 0 ]; do
     case "$1" in
         --venv)
@@ -226,21 +235,30 @@ QUICKSTART_LOG="$ROOT/quickstart.log"
 DOCTOR_LOG="$ROOT/doctor.log"
 VERIFY_LOG="$ROOT/verify.log"
 
-"$QUANTUMD" quickstart "$PROJECT" |
+run_local_only "$QUANTUMD" quickstart "$PROJECT" |
     tee "$QUICKSTART_LOG"
 
-"$QUANTUMD" doctor "$PROJECT" |
+run_local_only "$QUANTUMD" doctor "$PROJECT" |
     tee "$DOCTOR_LOG"
 
-"$QUANTUMD" verify-chain "$PROJECT" --latest |
+run_local_only "$QUANTUMD" verify-chain "$PROJECT" --latest |
     tee "$VERIFY_LOG"
 
-grep -F "LOCAL_DEVELOPMENT" "$DOCTOR_LOG" >/dev/null ||
-    fail "Doctor did not report LOCAL_DEVELOPMENT."
-grep -F "LOCAL_SIMULATION_ONLY" "$DOCTOR_LOG" >/dev/null ||
-    fail "Doctor did not report LOCAL_SIMULATION_ONLY."
-grep -F "Hardware authorization: PROHIBITED" "$DOCTOR_LOG" >/dev/null ||
-    fail "Hardware was not explicitly prohibited."
+grep -Fx "Active trust mode:      LOCAL_DEVELOPMENT" "$DOCTOR_LOG" >/dev/null ||
+    fail "Doctor did not report exact LOCAL_DEVELOPMENT trust."
+grep -Fx "KMS key configured:     False" "$DOCTOR_LOG" >/dev/null ||
+    fail "Doctor detected inherited KMS configuration."
+grep -Fx "Local identity present: True" "$DOCTOR_LOG" >/dev/null ||
+    fail "Doctor did not report a local identity."
+grep -Fx "Local identity valid:   True" "$DOCTOR_LOG" >/dev/null ||
+    fail "Doctor did not validate the local identity."
+grep -Fx "Local trust scope:      LOCAL_SIMULATION_ONLY" "$DOCTOR_LOG" >/dev/null ||
+    fail "Doctor did not report exact local simulator scope."
+grep -Fx "Hardware authorization: PROHIBITED" "$DOCTOR_LOG" >/dev/null ||
+    fail "Doctor did not report exact hardware prohibition."
+if grep -F "KMS_GOVERNED" "$DOCTOR_LOG" >/dev/null; then
+    fail "Doctor inherited KMS_GOVERNED trust."
+fi
 grep -F "COMPLETE EVIDENCE CHAIN VERIFIED" "$VERIFY_LOG" >/dev/null ||
     fail "Independent chain verification did not complete."
 grep -F "IBM contacted:   False" "$VERIFY_LOG" >/dev/null ||

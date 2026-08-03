@@ -67,6 +67,9 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]"
 
+      - name: Check parser compatibility
+        run: python -m compileall -q src tests
+
       - name: Run regression suite
         run: python -m pytest -q
 
@@ -89,6 +92,8 @@ jobs:
 
       - name: Run exact published-alpha bootstrap
         run: |
+          QUANTUMD_KMS_KEY_VERSION="projects/poisoned/locations/test/keyRings/test/cryptoKeys/test/cryptoKeyVersions/1" \
+          GOOGLE_APPLICATION_CREDENTIALS="/tmp/nonexistent-quantumd-credentials.json" \
           bash scripts/bootstrap_public_alpha.sh \
             --venv "$RUNNER_TEMP/quantumd-alpha" \
             --project "$RUNNER_TEMP/quantumd-project"
