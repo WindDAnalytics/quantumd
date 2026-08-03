@@ -56,7 +56,7 @@ matches your role or question.
 | A first-time reader | [Public alpha installation](docs/getting-started/installation.md) | [Local quickstart](docs/getting-started/quickstart.md) |
 | A quantum developer | [Evidence Graph](docs/concepts/evidence-graph.md) | [IBM Quantum workflow](docs/providers/ibm-quantum.md) |
 | A security or DevSecOps engineer | [Trust boundary](docs/concepts/trust-boundary.md) | [Verify an evidence chain](docs/guides/verifying-a-chain.md) |
-| A reviewer, auditor, or program leader | [What the Evidence Graph records](docs/concepts/evidence-graph.md) | [v0.7.4 alpha release](docs/releases/v0.7.4-alpha.md) |
+| A reviewer, auditor, or program leader | [What the Evidence Graph records](docs/concepts/evidence-graph.md) | [v0.7.5 alpha release](docs/releases/v0.7.5-alpha.md) |
 | An educator, researcher, or advanced student | [Local simulation](docs/guides/local-simulation.md) | [Alpha evaluation](docs/alpha-evaluation.md) |
 | A contributor | [Contributing guide](CONTRIBUTING.md) | [Roadmap](docs/roadmap.md) |
 | A security researcher | [Security policy](SECURITY.md) | [Support boundaries](SUPPORT.md) |
@@ -95,64 +95,50 @@ the same as a verified chain connecting approval to execution and results.
 
 ## Run the public alpha
 
-QuantumD `0.7.4a0` is published on TestPyPI. Use an isolated Python environment
-and download only the QuantumD wheel from TestPyPI. Dependencies are installed
-from the default Python Package Index.
+QuantumD `0.7.5a0` is distributed through production PyPI. The complete
+QuantumD dependency set remains available through one installation.
 
-### 1. Create a supported isolated environment
-
-The recommended Linux and WSL path uses `uv`, so the setup does not depend on
-the operating system's default Python or `venv` package:
+### 1. Install QuantumD
 
 ```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-export PATH="$HOME/.local/bin:$PATH"
-
-uv python install 3.12
-uv venv --python 3.12 --seed ~/.venvs/quantumd-alpha
-source ~/.venvs/quantumd-alpha/bin/activate
-python --version
+python -m pip install quantumd
 ```
 
-QuantumD supports Python 3.10 and newer. Python 3.12 is the reference alpha
-environment. Users who already have a supported Python and working `venv` may
-use the standard-library environment path described in the
-[installation guide](docs/getting-started/installation.md).
-
-### 2. Download and verify the exact wheel
+QuantumD does not require you to create a virtual environment. The command
+installs into the Python environment associated with `python`. During alpha
+evaluation, you can pin the exact release:
 
 ```bash
-python -m pip download \
-  --no-deps \
-  --only-binary=:all: \
-  --index-url https://test.pypi.org/simple/ \
-  quantumd==0.7.4a0
-
-echo \
-  "761a865a5aaf655f570fa3ae6f1d0f9b1b09cb89ee5519ac1843b738d251b7d2  quantumd-0.7.4a0-py3-none-any.whl" \
-  | sha256sum --check
+python -m pip install "quantumd==0.7.5a0"
 ```
 
-### 3. Install and run the local workflow
+On systems that protect the system Python, install the command without manually
+managing an environment:
 
 ```bash
-python -m pip install \
-  ./quantumd-0.7.4a0-py3-none-any.whl
+pipx install quantumd
+```
 
+or:
+
+```bash
+uv tool install --python 3.12 quantumd
+```
+
+### 2. Run the local governed workflow
+
+```bash
 quantumd quickstart my-first-quantumd-project
 ```
 
-### 4. Inspect and independently verify the evidence
+### 3. Inspect and independently verify the evidence
 
 ```bash
 quantumd doctor my-first-quantumd-project
-
-quantumd verify-chain \
-  my-first-quantumd-project \
-  --latest
+quantumd verify-chain my-first-quantumd-project --latest
 ```
 
-The local quickstart is intentionally restricted:
+The local quickstart remains intentionally restricted:
 
 ```text
 Trust mode:             LOCAL_DEVELOPMENT
@@ -172,10 +158,10 @@ KMS contacted:   False
 Hardware action: None
 ```
 
-For expanded instructions, the guided bootstrap, WSL troubleshooting,
-checksum details, and source development installation, see the
-[installation guide](docs/getting-started/installation.md) and
-[platform-support matrix](docs/getting-started/platform-support.md).
+QuantumD supports Python 3.10, 3.11, and 3.12. Python 3.12 remains the
+reference release environment. See the
+[installation guide](docs/getting-started/installation.md) for exact-version,
+`pipx`, `uv tool`, WSL, and source-development paths.
 
 ## The Evidence Graph
 
@@ -251,7 +237,7 @@ Read [Trust modes](docs/concepts/trust-modes.md) for the complete boundaries.
 
 | Document | What it helps you do |
 |---|---|
-| [Installation](docs/getting-started/installation.md) | Install the exact public-alpha wheel or create a source-development environment |
+| [Installation](docs/getting-started/installation.md) | Install QuantumD from production PyPI or create a source-development environment |
 | [Local quickstart](docs/getting-started/quickstart.md) | Create a governed simulator project and verify its evidence |
 | [Local simulation](docs/guides/local-simulation.md) | Understand the simulator-first workflow |
 | [Verify an evidence chain](docs/guides/verifying-a-chain.md) | Independently inspect the latest execution chain |
@@ -272,7 +258,7 @@ Read [Trust modes](docs/concepts/trust-modes.md) for the complete boundaries.
 |---|---|
 | [Alpha evaluation](docs/alpha-evaluation.md) | Test the stranger experience and provide structured feedback |
 | [Evaluator worksheet](ALPHA_TESTING.md) | Record installation time, confusion, skepticism, and next-use cases |
-| [v0.7.4 alpha release](docs/releases/v0.7.4-alpha.md) | Review the published alpha, checksum, and validated boundaries |
+| [v0.7.5 alpha release](docs/releases/v0.7.5-alpha.md) | Review the published alpha, checksum, and validated boundaries |
 | [Security policy](SECURITY.md) | Report vulnerabilities privately and understand security-sensitive areas |
 | [Contributing](CONTRIBUTING.md) | Set up development and preserve fail-closed behavior |
 | [Support](SUPPORT.md) | Choose the correct public or private support channel |
@@ -334,12 +320,12 @@ that generated it.
 
 ## Release provenance
 
-The current public alpha is `v0.7.4-alpha`, published as Python package version
-`0.7.4a0`.
+The current production PyPI alpha is `v0.7.5-alpha`, published as Python
+package version `0.7.5a0`.
 
-- Release notes: [v0.7.4 alpha](docs/releases/v0.7.4-alpha.md)
-- Package checksum:
-  `761a865a5aaf655f570fa3ae6f1d0f9b1b09cb89ee5519ac1843b738d251b7d2`
+- Production package: [PyPI quantumd](https://pypi.org/project/quantumd/)
+- Release notes: [v0.7.5 alpha](docs/releases/v0.7.5-alpha.md)
+- Publishing identity: GitHub Actions Trusted Publishing through OIDC
 - Website: [quantumd.ai](https://quantumd.ai)
 - License: [Apache License 2.0](LICENSE)
 
