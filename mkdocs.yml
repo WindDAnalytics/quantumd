@@ -47,6 +47,7 @@ nav:
 
   - Getting Started:
       - Installation: getting-started/installation.md
+      - Platform Support: getting-started/platform-support.md
       - Local Quickstart: getting-started/quickstart.md
 
   - Core Concepts:

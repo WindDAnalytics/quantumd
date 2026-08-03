@@ -99,16 +99,25 @@ QuantumD `0.7.4a0` is published on TestPyPI. Use an isolated Python environment
 and download only the QuantumD wheel from TestPyPI. Dependencies are installed
 from the default Python Package Index.
 
-### 1. Create an isolated environment
+### 1. Create a supported isolated environment
+
+The recommended Linux and WSL path uses `uv`, so the setup does not depend on
+the operating system's default Python or `venv` package:
 
 ```bash
-python3.12 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
+
+uv python install 3.12
+uv venv --python 3.12 --seed ~/.venvs/quantumd-alpha
+source ~/.venvs/quantumd-alpha/bin/activate
+python --version
 ```
 
 QuantumD supports Python 3.10 and newer. Python 3.12 is the reference alpha
-environment.
+environment. Users who already have a supported Python and working `venv` may
+use the standard-library environment path described in the
+[installation guide](docs/getting-started/installation.md).
 
 ### 2. Download and verify the exact wheel
 
@@ -163,9 +172,10 @@ KMS contacted:   False
 Hardware action: None
 ```
 
-For expanded instructions, WSL guidance, checksum details, and source
-development installation, see the
-[installation guide](docs/getting-started/installation.md).
+For expanded instructions, the guided bootstrap, WSL troubleshooting,
+checksum details, and source development installation, see the
+[installation guide](docs/getting-started/installation.md) and
+[platform-support matrix](docs/getting-started/platform-support.md).
 
 ## The Evidence Graph
 

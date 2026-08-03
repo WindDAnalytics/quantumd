@@ -19,50 +19,25 @@ The initial group should include:
 Complete the installation and quickstart without a live walkthrough. Record
 where the documentation creates confusion, skepticism, or unnecessary work.
 
-## Secure TestPyPI installation
+## Secure public-alpha installation
 
-Create an isolated environment:
-
-```bash
-python3.12 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-```
-
-Download the exact QuantumD wheel from TestPyPI without resolving dependencies
-from that index:
+Use the [installation guide](docs/getting-started/installation.md). The
+recommended Linux and WSL path is the repository bootstrap:
 
 ```bash
-python -m pip download \
-  --no-deps \
-  --only-binary=:all: \
-  --index-url https://test.pypi.org/simple/ \
-  quantumd==0.7.4a0
+curl -fsSLO \
+  https://raw.githubusercontent.com/WindDAnalytics/quantumd/main/scripts/bootstrap_public_alpha.sh
+
+less bootstrap_public_alpha.sh
+bash bootstrap_public_alpha.sh
 ```
 
-Install the downloaded wheel. Its dependencies will resolve from the default
-Python Package Index:
+The evaluator should review the script before running it. The bootstrap creates
+an isolated Python 3.12 environment, verifies the exact public wheel, runs the
+local quickstart, and independently verifies the resulting evidence.
 
-```bash
-python -m pip install \
-  ./quantumd-0.7.4a0-py3-none-any.whl
-```
-
-Run the first governed local workflow:
-
-```bash
-quantumd quickstart my-first-quantumd-project
-```
-
-Inspect the environment and independently verify the evidence:
-
-```bash
-quantumd doctor my-first-quantumd-project
-
-quantumd verify-chain \
-  my-first-quantumd-project \
-  --latest
-```
+Record the operating system, architecture, Python bootstrap method, installation
+time, and time to the first verified chain.
 
 ## Expected security boundary
 

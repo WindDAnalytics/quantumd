@@ -1021,12 +1021,13 @@ def submit_command(
         print(
             "Hardware submitted:   True"
         )
+        submission_artifact = _relative_to_project(
+            submission_path,
+            context["project"],
+        )
         print(
             "Submission artifact:  "
-            f"{_relative_to_project(
-                submission_path,
-                context['project'],
-            )}"
+            f"{submission_artifact}"
         )
 
     except Exception as exc:

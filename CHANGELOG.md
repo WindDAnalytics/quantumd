@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+### Public installation hardening
+- Added a guided Linux and WSL bootstrap using a `uv`-managed Python 3.12 environment.
+- Added explicit platform-support labels and a compatibility matrix.
+- Documented Ubuntu 20.04 default-Python and missing-`venv` failure modes.
+- Added compatibility testing for Python 3.10, 3.11, and 3.12.
+- Added public bootstrap acceptance for Ubuntu 22.04 and Ubuntu 20.04 in a container.
+
 ## 0.7.4a0 - 2026-08-02
 
 ### Public-alpha acceptance hardening

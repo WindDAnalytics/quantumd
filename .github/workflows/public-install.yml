@@ -1,0 +1,128 @@
+name: QuantumD Public Install Compatibility
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/public-install.yml"
+      - "ALPHA_TESTING.md"
+      - "CHANGELOG.md"
+      - "CONTRIBUTING.md"
+      - "README.md"
+      - "docs/getting-started/**"
+      - "mkdocs.yml"
+      - "pyproject.toml"
+      - "scripts/bootstrap_public_alpha.sh"
+      - "src/**"
+  push:
+    branches:
+      - main
+      - master
+      - "feature/**"
+    paths:
+      - ".github/workflows/public-install.yml"
+      - "ALPHA_TESTING.md"
+      - "CHANGELOG.md"
+      - "CONTRIBUTING.md"
+      - "README.md"
+      - "docs/getting-started/**"
+      - "mkdocs.yml"
+      - "pyproject.toml"
+      - "scripts/bootstrap_public_alpha.sh"
+      - "src/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quantumd-public-install-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python-compatibility:
+    name: Python ${{ matrix.python-version }} compatibility
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.10"
+          - "3.11"
+          - "3.12"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "${{ matrix.python-version }}"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install source and tests
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Check parser compatibility
+        run: python -m compileall -q src tests
+
+      - name: Run regression suite
+        run: python -m pytest -q
+
+      - name: Run local quickstart and verification
+        run: |
+          quantumd quickstart "$RUNNER_TEMP/quantumd-project"
+          quantumd doctor "$RUNNER_TEMP/quantumd-project"
+          quantumd verify-chain \
+            "$RUNNER_TEMP/quantumd-project" \
+            --latest
+
+  ubuntu-22-public-bootstrap:
+    name: Ubuntu 22.04 public bootstrap
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Run exact published-alpha bootstrap
+        run: |
+          QUANTUMD_KMS_KEY_VERSION="projects/poisoned/locations/test/keyRings/test/cryptoKeys/test/cryptoKeyVersions/1" \
+          GOOGLE_APPLICATION_CREDENTIALS="/tmp/nonexistent-quantumd-credentials.json" \
+          bash scripts/bootstrap_public_alpha.sh \
+            --venv "$RUNNER_TEMP/quantumd-alpha" \
+            --project "$RUNNER_TEMP/quantumd-project"
+
+  ubuntu-20-public-bootstrap:
+    name: Ubuntu 20.04 container public bootstrap
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Run bootstrap in Ubuntu 20.04
+        run: |
+          docker run \
+            --rm \
+            --volume "$PWD:/workspace:ro" \
+            ubuntu:20.04 \
+            bash -lc '
+              set -euo pipefail
+              apt-get update
+              DEBIAN_FRONTEND=noninteractive \
+                apt-get install -y \
+                  build-essential \
+                  ca-certificates \
+                  curl \
+                  git
+              bash /workspace/scripts/bootstrap_public_alpha.sh \
+                --venv /tmp/quantumd-alpha \
+                --project /tmp/quantumd-project
+            '
