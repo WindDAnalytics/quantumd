@@ -12,12 +12,18 @@ Use Python 3.12 for the reference development environment.
 git clone https://github.com/WindDAnalytics/quantumd.git
 cd quantumd
 
-python3.12 -m venv .venv
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
+
+uv python install 3.12
+uv venv --python 3.12 --seed .venv
 source .venv/bin/activate
 
-python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
 ```
+
+Contributors who already have Python 3.12 and working standard-library virtual
+environment support may use `python3.12 -m venv .venv`.
 
 Run the regression suite:
 
