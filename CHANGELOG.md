@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.5a0 - 2026-08-03
+### Production PyPI installation
+- Added protected production PyPI publishing through GitHub OIDC.
+- Made `python -m pip install quantumd` the primary installation path.
+- Added `pipx` and `uv tool` paths for users who do not want to manage a virtual environment.
+- Retained one complete QuantumD dependency set.
+- Added Python 3.10 and Python 3.11 package classifiers.
+- Preserved simulator-only local trust, hardware prohibition, and independent evidence verification.
+
 ## Unreleased
 ### Public installation hardening
 - Added a guided Linux and WSL bootstrap using a `uv`-managed Python 3.12 environment.
